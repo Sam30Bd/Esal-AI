@@ -1,0 +1,109 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="اسأل AI - أدوات ذكاء اصطناعي عربية مجانية للكتابة والتعلم والترجمة والإبداع.">
+<title>اسأل AI | أدوات الذكاء الاصطناعي</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Tahoma,Arial,sans-serif;background:#f4f7fc;color:#17243a}
+header{background:#101c35;color:white;padding:18px 6%;display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:23px;font-weight:bold}
+.logo span{color:#65a4ff}
+.hero{text-align:center;padding:55px 18px 35px;background:linear-gradient(140deg,#101c35,#2459a9);color:white}
+.hero h1{font-size:34px;margin:8px}
+.hero p{color:#d8e5ff;line-height:1.9}
+.tag{color:#8bc0ff;font-size:14px}
+main{max-width:850px;margin:auto;padding:25px 16px}
+h2{text-align:center}
+.tools{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:22px 0}
+.tool{background:white;border:2px solid transparent;border-radius:14px;padding:18px 10px;text-align:center;cursor:pointer;box-shadow:0 3px 12px #152b4b0b}
+.tool.active{border-color:#3678ee;background:#eef4ff}
+.tool strong{display:block;margin-top:8px}
+.tool small{color:#68758b}
+.panel{background:white;border-radius:17px;padding:20px;box-shadow:0 5px 22px #152b4b10}
+label{display:block;font-weight:bold;margin-bottom:10px}
+textarea{width:100%;min-height:125px;border:1px solid #d8dfeb;border-radius:10px;padding:13px;font:16px Tahoma;resize:vertical}
+button{border:0;border-radius:10px;background:#2868df;color:white;padding:14px;font-size:16px;font-weight:bold;width:100%;margin-top:13px;cursor:pointer}
+#result{display:none;background:#f0f5ff;border-radius:10px;padding:15px;margin-top:15px;white-space:pre-wrap;line-height:1.9;overflow-wrap:anywhere}
+.note{font-size:12px;color:#77849a;line-height:1.8;margin-top:14px}
+footer{text-align:center;padding:25px;color:#718096;font-size:13px}
+@media(min-width:600px){.tools{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+<header>
+<div class="logo">🧠 اسأل <span>AI</span></div>
+<div>منصتك العربية الذكية</div>
+</header>
+
+<section class="hero">
+<div class="tag">✨ أدوات مجانية باللغة العربية</div>
+<h1>ذكاؤك يبدأ من هنا</h1>
+<p>اكتشف أفكاراً جديدة، اكتب، تعلم، وترجم بمساعدة الذكاء الاصطناعي.</p>
+</section>
+
+<main>
+<h2>اختر أداتك الذكية</h2>
+<div class="tools">
+<div class="tool active" onclick="choose(this,'كاتب المقالات')">
+<span>✍️</span><strong>كاتب المقالات</strong><small>كتابة النصوص</small>
+</div>
+<div class="tool" onclick="choose(this,'مولد الأفكار')">
+<span>💡</span><strong>مولد الأفكار</strong><small>أفكار ومشاريع</small>
+</div>
+<div class="tool" onclick="choose(this,'المترجم')">
+<span>🌍</span><strong>المترجم</strong><small>ترجمة النصوص</small>
+</div>
+<div class="tool" onclick="choose(this,'المساعد الدراسي')">
+<span>📚</span><strong>المساعد الدراسي</strong><small>شرح وتلخيص</small>
+</div>
+</div>
+
+<section class="panel">
+<label id="selected">أداة كاتب المقالات</label>
+<textarea id="question" placeholder="اكتب طلبك هنا..."></textarea>
+<button onclick="prepare()">جهّز طلبي الذكي ✨</button>
+<div id="result"></div>
+<button id="copy" style="display:none;background:#172b4d" onclick="copyText()">نسخ الطلب</button>
+<p class="note">هذه النسخة الأولى لتجهيز الطلبات. سيتم ربطها بنموذج ذكاء اصطناعي فعلي في المرحلة التالية.</p>
+</section>
+</main>
+
+<footer>اسأل AI © 2026 — مشروع عربي مستقل</footer>
+
+<script>
+let selected='كاتب المقالات';
+function choose(el,name){
+document.querySelectorAll('.tool').forEach(x=>x.classList.remove('active'));
+el.classList.add('active');
+selected=name;
+document.getElementById('selected').textContent='أداة '+name;
+}
+function prepare(){
+let q=document.getElementById('question').value.trim();
+if(!q){alert('اكتب طلبك أولاً');return;}
+let instructions={
+'كاتب المقالات':'اكتب مقالاً عربياً منظماً واحترافياً عن: ',
+'مولد الأفكار':'اقترح أفكاراً إبداعية وعملية حول: ',
+'المترجم':'ترجم النص التالي إلى العربية ترجمة دقيقة مع الحفاظ على المعنى: ',
+'المساعد الدراسي':'اشرح الموضوع التالي بالعربية بطريقة مبسطة مع أمثلة: '
+};
+let prompt=instructions[selected]+q;
+document.getElementById('result').style.display='block';
+document.getElementById('result').textContent=prompt;
+document.getElementById('copy').style.display='block';
+}
+function copyText(){
+let text=document.getElementById('result').textContent;
+if(navigator.clipboard){
+navigator.clipboard.writeText(text).then(()=>alert('تم نسخ الطلب!'));
+}else{
+alert('حدد النص وانسخه يدوياً');
+}
+}
+</script>
+</body>
+</html>
