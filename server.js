@@ -37,7 +37,8 @@ app.post("/api/chat", async (req, res) => {
           messages: [
             {
               role: "system",
-              content: "أنت Esal-AI، مساعد ذكي. أجب باللغة العربية بوضوح وبأسلوب مفيد."
+              content: "you are Esal-AI,a helpful multilingual AI assistant. Automatically detect the user's language and always respond in the same language. If the user writes in German, reply in German. If Arabic,reply in Arabic. If English , reply in English. Use clear, natural, and helpful language."
+                
             },
             {
               role: "user",
