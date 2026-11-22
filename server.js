@@ -302,7 +302,6 @@ app.post(
 
       form.append("file", audioBlob, req.file.originalname || "recording.webm");
       form.append("model", "whisper-large-v3-turbo");
-      form.append("language", "ar");
       form.append("response_format", "json");
 
       const response = await groqRequest(
@@ -342,8 +341,48 @@ app.post(
 );
 
 // =====================================
-// تحويل النص إلى صوت
+// تحويل النص إلى صوت طبيعي (العربية والإنجليزية)
 // =====================================
+
+function splitSpeechText(text, maxLength = 180) {
+  const normalized = text
+    .replace(/\s+/g, " ")
+    .replace(/([،؛])\s*/g, "$1 ")
+    .trim();
+
+  const sentences = normalized.match(/[^.!?؟。]+[.!?؟。]?/g) || [normalized];
+  const chunks = [];
+  let current = "";
+
+  for (const sentence of sentences) {
+    const words = sentence.trim().split(/\s+/);
+
+    for (const word of words) {
+      if (!word) continue;
+
+      if (word.length > maxLength) {
+        if (current) chunks.push(current.trim());
+        current = "";
+        for (let i = 0; i < word.length; i += maxLength) {
+          chunks.push(word.slice(i, i + maxLength));
+        }
+        continue;
+      }
+
+      const candidate = current ? current + " " + word : word;
+
+      if (candidate.length > maxLength) {
+        if (current) chunks.push(current.trim());
+        current = word;
+      } else {
+        current = candidate;
+      }
+    }
+  }
+
+  if (current.trim()) chunks.push(current.trim());
+  return chunks;
+}
 
 app.post(
   "/api/speech",
@@ -352,68 +391,100 @@ app.post(
     try {
       if (!requireApiKey(res)) return;
 
-      const { text, language = "ar" } = req.body || {};
+      const {
+        text,
+        language = "ar",
+        voice
+      } = req.body || {};
 
-      if (
-        typeof text !== "string" ||
-        !text.trim()
-      ) {
+      if (typeof text !== "string" || !text.trim()) {
         return res.status(400).json({
           success: false,
           error: "يرجى إرسال نص لتحويله إلى صوت."
         });
       }
 
-      if (text.length > 5000) {
+      if (text.length > 3000) {
         return res.status(413).json({
           success: false,
-          error: "النص طويل جداً لتحويله إلى صوت."
+          error: "النص طويل جداً. الحد الأقصى 3000 حرف في المرة الواحدة."
         });
       }
 
-      const isArabic = String(language).toLowerCase().startsWith("ar");
+      const lang = String(language).toLowerCase();
+      const isArabic = lang.startsWith("ar");
+      const isEnglish = lang.startsWith("en");
 
-      const ttsPayload = {
-        model: isArabic
-          ? "canopylabs/orpheus-arabic-saudi"
-          : "canopylabs/orpheus-v1-english",
-        input: text.trim(),
-        voice: isArabic ? "fahad" : "troy",
-        response_format: "wav"
-      };
-
-      const response = await groqRequest(
-        "/audio/speech",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(ttsPayload),
-          timeout: 120000
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-
-        console.error("Speech Error:", errorText);
-
-        return res.status(502).json({
+      if (!isArabic && !isEnglish) {
+        return res.status(400).json({
           success: false,
-          error: "خدمة تحويل النص إلى صوت غير متاحة حالياً. تحقق من دعم نموذج الصوت في حساب Groq."
+          error: "خدمة الصوت الطبيعية على الخادم تدعم العربية والإنجليزية حالياً. استخدم صوت الجهاز للغات الأخرى."
         });
       }
 
-      const audioBuffer = Buffer.from(
-        await response.arrayBuffer()
-      );
+      const allowedArabicVoices = [
+        "abdullah", "fahad", "sultan", "lulwa", "noura", "aisha"
+      ];
+      const allowedEnglishVoices = [
+        "autumn", "diana", "hannah", "austin", "daniel", "troy"
+      ];
 
-      res.setHeader("Content-Type", "audio/wav");
-      res.setHeader("Content-Length", audioBuffer.length);
-      res.setHeader("Cache-Control", "no-store");
+      const selectedVoice = String(voice || (isArabic ? "fahad" : "troy")).toLowerCase();
+      const allowedVoices = isArabic ? allowedArabicVoices : allowedEnglishVoices;
 
-      return res.send(audioBuffer);
+      if (!allowedVoices.includes(selectedVoice)) {
+        return res.status(400).json({
+          success: false,
+          error: "الصوت المختار غير متاح لهذه اللغة."
+        });
+      }
+
+      const model = isArabic
+        ? "canopylabs/orpheus-arabic-saudi"
+        : "canopylabs/orpheus-v1-english";
+
+      const chunks = splitSpeechText(text.trim(), 180);
+      const audioChunks = [];
+
+      for (const chunk of chunks) {
+        const response = await groqRequest(
+          "/audio/speech",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              model,
+              input: chunk,
+              voice: selectedVoice,
+              response_format: "wav"
+            }),
+            timeout: 120000
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Speech Error:", errorText);
+
+          return res.status(502).json({
+            success: false,
+            error: "تعذر إنشاء الصوت. تحقق من تفعيل نموذج Orpheus في حساب Groq."
+          });
+        }
+
+        const audioBuffer = Buffer.from(await response.arrayBuffer());
+        audioChunks.push(audioBuffer.toString("base64"));
+      }
+
+      return res.json({
+        success: true,
+        language: isArabic ? "ar" : "en",
+        voice: selectedVoice,
+        mimeType: "audio/wav",
+        audioChunks
+      });
 
     } catch (error) {
       console.error("Speech Error:", error);
