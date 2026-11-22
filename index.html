@@ -432,29 +432,32 @@ footer{text-align:center;color:#63728c;font-size:10px;padding:12px}
   }
 
   async function speakWithGroq(text, language) {
-    if (text.length > 3000) {
-      throw new Error("الإجابة طويلة جداً للقراءة دفعة واحدة. انسخ جزءاً أقصر.");
-    }
-
     const response = await fetch(API + "/api/speech", {
       method: "POST",
       headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({
-        text,
-        language,
-        voice: (() => {
-          const selected = $("speechVoice").value;
-          const arabicVoices = ["abdullah","fahad","sultan","lulwa","noura","aisha"];
-          const englishVoices = ["autumn","diana","hannah","austin","daniel","troy"];
-          if (language === "ar") return arabicVoices.includes(selected) ? selected : "fahad";
-          return englishVoices.includes(selected) ? selected : "troy";
-        })()
-      })
+      body: JSON.stringify({text, language})
     });
 
+    const contentType = response.headers.get("content-type") || "";
+
+    if (!response.ok) {
+      let message = "تعذر إنشاء الصوت الطبيعي.";
+      if (contentType.includes("application/json")) {
+        const errorData = await response.json();
+        message = errorData.error || message;
+      }
+      throw new Error(message);
+    }
+
+    if (contentType.includes("audio/")) {
+      const audioBlob = await response.blob();
+      await playAudioBlob(audioBlob);
+      return;
+    }
+
     const data = await response.json();
-    if (!response.ok || !data.success) {
-      throw new Error(data.error || "تعذر إنشاء الصوت الطبيعي.");
+    if (!data.success) {
+      throw new Error(data.error || "تعذر إنشاء الصوت.");
     }
 
     for (const encoded of data.audioChunks || []) {
