@@ -40,7 +40,7 @@ app.post("/api/chat", async (req, res) => {
     });
 
     const response = await client.responses.create({
-      model: "gpt-5.5",
+      model: "gpt-6.2-astra",
       instructions: "أنت Esal-AI، مساعد ذكي يتحدث العربية والإنجليزية. أجب بوضوح وبأسلوب مفيد.",
       input: message
     });
