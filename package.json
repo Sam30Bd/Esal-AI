@@ -1,14 +1,21 @@
+
 {
   "name": "esal-ai",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "private": true,
   "type": "module",
+  "description": "Esal AI - Multilingual AI Assistant with Chat, Speech and Transcription",
+  "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18.18.0"
   },
   "dependencies": {
-  "express": "^5.1.0",
-  "openai": "^5.0.0",
-  "cors": "^2.8.5",
-  "multer": "^2.0.2"
- }
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "multer": "^2.0.2"
+  }
 }
