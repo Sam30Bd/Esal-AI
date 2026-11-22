@@ -104,6 +104,49 @@ navigator.clipboard.writeText(text).then(()=>alert('تم نسخ الطلب!'));
 alert('حدد النص وانسخه يدوياً');
 }
 }
+prepare = async function() {
+  let q = document.getElementById('question').value.trim();
+
+  if (!q) {
+    alert('اكتب طلبك أولاً');
+    return;
+  }
+
+  let instructions = {
+    'كاتب المقالات': 'اكتب مقالاً عربياً منظماً واحترافياً عن: ',
+    'مولد الأفكار': 'اقترح أفكاراً إبداعية وعملية حول: ',
+    'المترجم': 'ترجم النص التالي إلى العربية ترجمة دقيقة: ',
+    'المساعد الدراسي': 'اشرح الموضوع التالي بالعربية بطريقة مبسطة مع أمثلة: '
+  };
+
+  let message = instructions[selected] + q;
+  let result = document.getElementById('result');
+
+  result.style.display = 'block';
+  result.textContent = 'جاري التفكير... انتظر قليلاً ⏳';
+
+  try {
+    let response = await fetch('https://esal-ai-api.onrender.com/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ message: message })
+    });
+
+    let data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'حدث خطأ');
+    }
+
+    result.textContent = data.reply;
+    document.getElementById('copy').style.display = 'block';
+
+  } catch (error) {
+    result.textContent = 'عذراً، حدث خطأ: ' + error.message;
+  }
+};  
 </script>
 </body>
 </html>
