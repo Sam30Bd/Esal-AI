@@ -39,6 +39,7 @@ textarea:focus{border-color:#85aaff;box-shadow:0 0 0 3px #719cff20}
 .send{background:linear-gradient(135deg,#8db4ff,#536fe0)}
 .mic-main{background:#1e304d;border:1px solid #405779}
 .mic-main.recording{background:#7d3041;border-color:#db7187}
+.stop-main{width:52px;height:52px;flex:0 0 52px;border:1px solid #754252;border-radius:15px;background:#3a202d;color:#ffb5c2;font-size:19px;display:grid;place-items:center}.stop-main:active{background:#713044}.stop-main:disabled{opacity:.45}
 .send:disabled{opacity:.5}
 .composer-tools,.select-label,#speechLanguage,#speechVoice{display:none!important}
 .hint{color:#7f91ad;font-size:10px;text-align:center;margin-top:9px}
@@ -68,6 +69,7 @@ footer{text-align:center;color:#63728c;font-size:10px;padding:12px}
       <div class="input-wrap">
         <textarea id="prompt" rows="2" placeholder="اسأل إسال AI أي شيء..."></textarea>
         <button class="mic-main" id="mic" aria-label="تسجيل صوتي">🎙</button>
+        <button class="stop-main" id="stopAudioBtn" aria-label="إيقاف الصوت" title="إيقاف الصوت">■</button>
         <button class="send" id="send" aria-label="إرسال">➤</button>
       </div>
       <div class="composer-tools">
@@ -540,6 +542,11 @@ footer{text-align:center;color:#63728c;font-size:10px;padding:12px}
   });
 
   $("stopRead").addEventListener("click", stopSpeech);
+  $("stopAudioBtn").addEventListener("click", () => {
+    stopSpeech();
+    $("stopAudioBtn").textContent = "✓";
+    setTimeout(() => { $("stopAudioBtn").textContent = "■"; }, 1200);
+  });
 
   async function transcribe(blob) {
     const form = new FormData();
