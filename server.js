@@ -270,7 +270,68 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-// Start server
+// Start serverapp.post("/api/transcribe", upload.single("audio"), async (req, res) => {
+  try {
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(500).json({
+        error: "Groq API key is missing."
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        error: "لم يتم إرسال تسجيل صوتي."
+      });
+    }
+
+    const form = new FormData();
+
+    const audioBlob = new Blob([req.file.buffer], {
+      type: req.file.mimetype || "audio/webm"
+    });
+
+    form.append(
+      "file",
+      audioBlob,
+      req.file.originalname || "recording.webm"
+    );
+
+    form.append("model", "whisper-large-v3-turbo");
+
+    const response = await fetch(
+      "https://api.groq.com/openai/v1/audio/transcriptions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`
+        },
+        body: form,
+        signal: AbortSignal.timeout(60000)
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Whisper Error:", data);
+
+      return res.status(500).json({
+        error: "تعذر تحويل الصوت إلى نص."
+      });
+    }
+
+    res.json({
+      text: data.text
+    });
+
+  } catch (error) {
+    console.error("Transcription Error:", error);
+
+    res.status(500).json({
+      error: "حدث خطأ أثناء معالجة التسجيل."
+    });
+  }
+});
 app.listen(PORT, "0.0.0.0", () => {
   console.log("--------------------------------");
   console.log("Esal-AI Server Started");
