@@ -5,68 +5,84 @@ import multer from "multer";
 
 const app = express();
 
-// =====================================
-// 1. إعدادات الخادم
-// =====================================
-
 const PORT = process.env.PORT || 3000;
-
-const MODEL =
-  process.env.GROQ_MODEL || "openai/gpt-oss-120b";
-
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+const GROQ_URL = "https://api.groq.com/openai/v1";
 
-const GROQ_BASE_URL =
-  "https://api.groq.com/openai/v1";
-
-const MAX_MESSAGE_LENGTH = 30000;
+const MAX_MESSAGE_LENGTH = 20000;
 const MAX_HISTORY_MESSAGES = 20;
-const MAX_AUDIO_SIZE = 20 * 1024 * 1024;
-
-app.disable("x-powered-by");
-app.set("trust proxy", 1);
-
-app.use(express.json({
-  limit: "2mb"
-}));
-
-// =====================================
-// 2. إعدادات CORS
-// =====================================
-
-const allowedOrigins = (
-  process.env.ALLOWED_ORIGINS || "*"
-)
-  .split(",")
-  .map(origin => origin.trim())
-  .filter(Boolean);
 
 app.use(cors({
-  origin(origin, callback) {
-    if (
-      !origin ||
-      allowedOrigins.includes("*") ||
-      allowedOrigins.includes(origin)
-    ) {
-      return callback(null, true);
-    }
-
-    return callback(new Error("Origin not allowed"));
-  },
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  origin: process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(",").map(x => x.trim())
+    : "*"
 }));
 
-// =====================================
-// 3. تحديد معدل الطلبات
-// =====================================
+app.use(express.json({ limit: "2mb" }));
 
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 20 * 1024 * 1024
+  }
+});
+
+const SYSTEM_PROMPT = `
+أنت إسال AI، مساعد ذكاء اصطناعي عربي متطور.
+تحدث بلغة المستخدم، وكن دقيقاً ومفيداً وودوداً.
+افهم سياق المحادثة السابقة ولا تطلب من المستخدم تكرار المعلومات.
+أجب بوضوح وبالتفصيل المناسب للسؤال.
+في البرمجة قدم أكواداً عملية قابلة للاستخدام.
+لا تخترع معلومات أو مصادر أو روابط.
+إذا لم تكن متأكداً من معلومة فقل ذلك بوضوح.
+استخدم البحث في الإنترنت عندما تكون المعلومة حديثة أو عندما يطلب المستخدم البحث.
+`;
+
+function getErrorMessage(error) {
+  return error?.message || "حدث خطأ غير متوقع.";
+}
+
+function requireApiKey(res) {
+  if (!GROQ_API_KEY) {
+    res.status(500).json({
+      success: false,
+      error: "مفتاح GROQ_API_KEY غير مضبوط في إعدادات الخادم."
+    });
+    return false;
+  }
+
+  return true;
+}
+
+async function groqRequest(path, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    options.timeout || 90000
+  );
+
+  try {
+    return await fetch(`${GROQ_URL}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+        ...(options.headers || {})
+      }
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// تحديد عدد الطلبات
 const requestCounts = new Map();
 
-function rateLimit(options = {}) {
-  const windowMs = options.windowMs || 60000;
-  const max = options.max || 30;
-
+function rateLimit({
+  windowMs = 60000,
+  max = 20
+} = {}) {
   return (req, res, next) => {
     const ip = req.ip || req.socket.remoteAddress || "unknown";
     const now = Date.now();
@@ -83,16 +99,10 @@ function rateLimit(options = {}) {
     record.count++;
     requestCounts.set(ip, record);
 
-    res.setHeader("RateLimit-Limit", max);
-    res.setHeader(
-      "RateLimit-Remaining",
-      Math.max(0, max - record.count)
-    );
-
     if (record.count > max) {
       return res.status(429).json({
         success: false,
-        error: "طلبات كثيرة جداً. انتظر قليلاً ثم حاول مجدداً."
+        error: "طلبات كثيرة جداً. يرجى الانتظار قليلاً."
       });
     }
 
@@ -100,203 +110,12 @@ function rateLimit(options = {}) {
   };
 }
 
-// تنظيف بيانات تحديد الطلبات القديمة
-setInterval(() => {
-  const now = Date.now();
-
-  for (const [ip, record] of requestCounts) {
-    if (now - record.start > 120000) {
-      requestCounts.delete(ip);
-    }
-  }
-}, 120000).unref();
-
-// =====================================
-// 4. إعداد رفع الملفات الصوتية
-// =====================================
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: MAX_AUDIO_SIZE,
-    files: 1
-  },
-  fileFilter(req, file, callback) {
-    const allowedTypes = [
-      "audio/webm",
-      "audio/wav",
-      "audio/mpeg",
-      "audio/mp3",
-      "audio/mp4",
-      "audio/m4a",
-      "audio/ogg",
-      "audio/x-wav",
-      "video/webm"
-    ];
-
-    if (
-      allowedTypes.includes(file.mimetype) ||
-      file.mimetype.startsWith("audio/")
-    ) {
-      return callback(null, true);
-    }
-
-    callback(new Error("نوع الملف الصوتي غير مدعوم."));
-  }
-});
-
-// =====================================
-// 5. تعليمات الذكاء الاصطناعي
-// =====================================
-
-const SYSTEM_PROMPT = `
-أنت إسال AI، مساعد ذكاء اصطناعي احترافي ومتعدد اللغات.
-
-مهمتك تقديم إجابات دقيقة ومفيدة وطبيعية ومنظمة.
-
-اللغة:
-- اكتشف لغة المستخدم تلقائياً.
-- أجب باللغة نفسها التي يستخدمها.
-- إذا تحدث بالعربية فأجب بالعربية.
-- إذا تحدث بالألمانية فأجب بالألمانية.
-- إذا تحدث بالإنجليزية فأجب بالإنجليزية.
-- ادعم اللغات الأخرى حسب طلب المستخدم.
-- لا تخلط اللغات دون حاجة.
-
-المحادثة:
-- افهم سياق المحادثة والرسائل السابقة.
-- أجب عن الأسئلة المتتابعة بالاعتماد على السياق المتاح.
-- لا تطلب معلومات سبق أن قدمها المستخدم.
-- لا تدّعِ تذكر معلومات غير موجودة في المحادثة.
-
-جودة الإجابات:
-- قدم إجابات واضحة ومفيدة ومتكاملة.
-- استخدم العناوين والقوائم عند الحاجة.
-- اشرح الموضوعات الصعبة بطريقة سهلة.
-- لا تكرر الكلام دون داعٍ.
-- لا تخترع معلومات أو مصادر.
-- وضح عدم اليقين عند الحاجة.
-
-الترجمة:
-- ترجم النصوص ترجمة احترافية وطبيعية.
-- حافظ على المعنى والتفاصيل والتنسيق.
-- لا تختصر الترجمة الكاملة.
-- حافظ على الأسماء والأرقام والتواريخ.
-- لا تضف تفسيرات غير مطلوبة.
-
-الكتابة:
-- اكتب المقالات والرسائل والمحتوى باحتراف.
-- راعِ أسلوب الكتابة والجمهور المستهدف.
-- حسّن الصياغة مع الحفاظ على المعنى عند التحرير.
-
-التعليم:
-- اشرح الدروس خطوة بخطوة.
-- قدم أمثلة عملية.
-- ساعد في الرياضيات والعلوم واللغات.
-- وضح خطوات الحل ولا تكتفِ بالنتيجة عند طلب الشرح.
-
-البرمجة:
-- اكتب أكواداً واضحة ومنظمة.
-- اشرح طريقة الاستخدام.
-- انتبه للأمان والأخطاء.
-- لا تدّعِ اختبار كود لم تختبره.
-
-التلخيص:
-- استخرج الأفكار الأساسية.
-- احتفظ بالمعلومات المهمة.
-- لا تغير المعنى الأصلي.
-
-قواعد عامة:
-- احترم تعليمات المستخدم.
-- لا تكشف مفاتيح API أو الأسرار.
-- لا تدّعِ تنفيذ عمليات لم تنفذها.
-- كن مهذباً وطبيعياً واحترافياً.
-
-أنت إسال AI، وهدفك تقديم تجربة ذكاء اصطناعي ممتازة.
-`;
-
-// =====================================
-// 6. أدوات مساعدة
-// =====================================
-
-function requireApiKey(res) {
-  if (!GROQ_API_KEY) {
-    res.status(500).json({
-      success: false,
-      error: "مفتاح Groq API غير مضبوط على الخادم."
-    });
-
-    return false;
-  }
-
-  return true;
-}
-
-function cleanSpeechText(text) {
-  return String(text || "")
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/`([^`]*)`/g, "$1")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/https?:\/\/\S+/gi, " ")
-    .replace(/[#*_~>|]/g, " ")
-    .replace(/[^\p{L}\p{M}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function getErrorMessage(error) {
-  if (error.name === "TimeoutError" ||
-      error.name === "AbortError") {
-    return "انتهت مهلة الطلب. حاول مرة أخرى.";
-  }
-
-  return "حدث خطأ أثناء معالجة طلبك. حاول لاحقاً.";
-}
-
-async function groqRequest(endpoint, options = {}) {
-  const controller = new AbortController();
-
-  const timeout = setTimeout(
-    () => controller.abort(),
-    options.timeout || 60000
-  );
-
-  try {
-    const response = await fetch(
-      GROQ_BASE_URL + endpoint,
-      {
-        ...options,
-        signal: controller.signal,
-        headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
-          ...(options.headers || {})
-        }
-      }
-    );
-
-    return response;
-
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-// =====================================
-// 7. الصفحة الرئيسية وحالة الخادم
-// =====================================
-
+// الصفحة الرئيسية
 app.get("/", (req, res) => {
-  res.json({
-    success: true,
-    name: "Esal-AI",
-    status: "online",
-    model: MODEL,
-    version: "2.0",
-    message: "إسال AI جاهز لمساعدتك."
-  });
+  res.send("Esal AI API is running.");
 });
 
-// فحص صحة الخادم
+// فحص حالة الخادم
 app.get("/health", (req, res) => {
   res.json({
     status: "healthy",
@@ -306,23 +125,17 @@ app.get("/health", (req, res) => {
 });
 
 // =====================================
-// 8. المحادثة الذكية
+// المحادثة الذكية مع البحث في الإنترنت
 // =====================================
 
 app.post(
   "/api/chat",
-  rateLimit({
-    windowMs: 60000,
-    max: 20
-  }),
+  rateLimit({ windowMs: 60000, max: 20 }),
   async (req, res) => {
     try {
       if (!requireApiKey(res)) return;
 
-      const {
-        message,
-        history = []
-      } = req.body || {};
+      const { message, history = [] } = req.body || {};
 
       if (
         typeof message !== "string" ||
@@ -337,7 +150,7 @@ app.post(
       if (message.length > MAX_MESSAGE_LENGTH) {
         return res.status(413).json({
           success: false,
-          error: "الرسالة طويلة جداً. يرجى تقسيم النص."
+          error: "الرسالة طويلة جداً."
         });
       }
 
@@ -348,7 +161,6 @@ app.post(
         });
       }
 
-      // التحقق من سجل المحادثة
       const safeHistory = history
         .slice(-MAX_HISTORY_MESSAGES)
         .filter(item =>
@@ -364,7 +176,16 @@ app.post(
       const messages = [
         {
           role: "system",
-          content: SYSTEM_PROMPT
+          content: SYSTEM_PROMPT + `
+
+قواعد البحث:
+- ابحث عند طلب المستخدم البحث أو عند الحاجة لمعلومات حديثة.
+- لا تستخدم البحث للأسئلة البسيطة التي لا تحتاج معلومات حديثة.
+- لا تخترع نتائج أو مصادر.
+- وضح المعلومات التي حصلت عليها من البحث.
+- أدرج الإحالات التي توفرها أداة البحث كما هي.
+- أجب بلغة المستخدم.
+`
         },
         ...safeHistory,
         {
@@ -373,6 +194,28 @@ app.post(
         }
       ];
 
+      // البحث اختياري بحسب حاجة السؤال
+      const needsSearch =
+        /ابحث|بحث|آخر الأخبار|اخر الاخبار|اليوم|حالياً|حاليا|الآن|الان|آخر تحديث|اخر تحديث|سعر اليوم|latest|news|today|current|search the web/i
+          .test(message);
+
+      const payload = {
+        model: MODEL,
+        messages,
+        temperature: 1,
+        max_completion_tokens: 4096
+      };
+
+      if (needsSearch) {
+        payload.reasoning_effort = "low";
+        payload.tool_choice = "required";
+        payload.tools = [
+          {
+            type: "browser_search"
+          }
+        ];
+      }
+
       const response = await groqRequest(
         "/chat/completions",
         {
@@ -380,13 +223,8 @@ app.post(
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({
-            model: MODEL,
-            messages,
-            temperature: 0.5,
-            max_completion_tokens: 4096
-          }),
-          timeout: 60000
+          body: JSON.stringify(payload),
+          timeout: 120000
         }
       );
 
@@ -397,7 +235,9 @@ app.post(
 
         return res.status(502).json({
           success: false,
-          error: "تعذر الحصول على إجابة حالياً. حاول مجدداً."
+          error:
+            data?.error?.message ||
+            "تعذر الحصول على إجابة من Groq."
         });
       }
 
@@ -433,16 +273,13 @@ app.post(
 );
 
 // =====================================
-// 9. تحويل الصوت إلى نص
+// تحويل الصوت إلى نص
 // =====================================
 
 app.post(
   "/api/transcribe",
-  rateLimit({
-    windowMs: 60000,
-    max: 10
-  }),
-  upload.single("audio"),
+  rateLimit({ windowMs: 60000, max: 10 }),
+  upload.single("file"),
   async (req, res) => {
     try {
       if (!requireApiKey(res)) return;
@@ -450,7 +287,7 @@ app.post(
       if (!req.file) {
         return res.status(400).json({
           success: false,
-          error: "لم يتم إرسال تسجيل صوتي."
+          error: "لم يتم إرسال ملف صوتي."
         });
       }
 
@@ -463,17 +300,9 @@ app.post(
         }
       );
 
-      form.append(
-        "file",
-        audioBlob,
-        req.file.originalname || "recording.webm"
-      );
-
-      form.append(
-        "model",
-        "whisper-large-v3-turbo"
-      );
-
+      form.append("file", audioBlob, req.file.originalname || "recording.webm");
+      form.append("model", "whisper-large-v3-turbo");
+      form.append("language", "ar");
       form.append("response_format", "json");
 
       const response = await groqRequest(
@@ -481,7 +310,7 @@ app.post(
         {
           method: "POST",
           body: form,
-          timeout: 90000
+          timeout: 120000
         }
       );
 
@@ -492,7 +321,7 @@ app.post(
 
         return res.status(502).json({
           success: false,
-          error: "تعذر تحويل الصوت إلى نص."
+          error: data?.error?.message || "فشل تحويل الصوت إلى نص."
         });
       }
 
@@ -513,23 +342,17 @@ app.post(
 );
 
 // =====================================
-// 10. تحويل النص إلى صوت
+// تحويل النص إلى صوت
 // =====================================
 
 app.post(
   "/api/speech",
-  rateLimit({
-    windowMs: 60000,
-    max: 30
-  }),
+  rateLimit({ windowMs: 60000, max: 10 }),
   async (req, res) => {
     try {
       if (!requireApiKey(res)) return;
 
-      const {
-        text,
-        language = "ar"
-      } = req.body || {};
+      const { text, language = "ar" } = req.body || {};
 
       if (
         typeof text !== "string" ||
@@ -537,42 +360,27 @@ app.post(
       ) {
         return res.status(400).json({
           success: false,
-          error: "يرجى إرسال النص المراد قراءته."
+          error: "يرجى إرسال نص لتحويله إلى صوت."
         });
       }
 
-      if (text.length > 200) {
-        return res.status(400).json({
+      if (text.length > 5000) {
+        return res.status(413).json({
           success: false,
-          error: "النص طويل جداً. قسّمه إلى مقاطع قصيرة."
+          error: "النص طويل جداً لتحويله إلى صوت."
         });
       }
 
-      if (!["ar", "en"].includes(language)) {
-        return res.status(400).json({
-          success: false,
-          error: "اللغة الصوتية غير مدعومة حالياً."
-        });
-      }
+      const isArabic = String(language).toLowerCase().startsWith("ar");
 
-      // تنظيف النص من الرموز وعلامات الترقيم
-      const cleanText = cleanSpeechText(text);
-
-      if (!cleanText) {
-        return res.status(400).json({
-          success: false,
-          error: "لا توجد كلمات أو أرقام لقراءتها."
-        });
-      }
-
-      // اختيار نموذج الصوت حسب اللغة
-      const model = language === "ar"
-        ? "canopylabs/orpheus-arabic-saudi"
-        : "canopylabs/orpheus-v1-english";
-
-      const voice = language === "ar"
-        ? "fahad"
-        : "troy";
+      const ttsPayload = {
+        model: isArabic
+          ? "canopylabs/orpheus-arabic-saudi"
+          : "canopylabs/orpheus-v1-english",
+        input: text.trim(),
+        voice: isArabic ? "fahad" : "troy",
+        response_format: "wav"
+      };
 
       const response = await groqRequest(
         "/audio/speech",
@@ -581,27 +389,19 @@ app.post(
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({
-            model,
-            input: cleanText,
-            voice,
-            response_format: "wav"
-          }),
-          timeout: 60000
+          body: JSON.stringify(ttsPayload),
+          timeout: 120000
         }
       );
 
       if (!response.ok) {
         const errorText = await response.text();
 
-        console.error(
-          "Speech Provider Error:",
-          errorText
-        );
+        console.error("Speech Error:", errorText);
 
         return res.status(502).json({
           success: false,
-          error: "تعذر إنشاء الصوت حالياً."
+          error: "خدمة تحويل النص إلى صوت غير متاحة حالياً. تحقق من دعم نموذج الصوت في حساب Groq."
         });
       }
 
@@ -609,20 +409,9 @@ app.post(
         await response.arrayBuffer()
       );
 
-      res.setHeader(
-        "Content-Type",
-        "audio/wav"
-      );
-
-      res.setHeader(
-        "Content-Length",
-        audioBuffer.length
-      );
-
-      res.setHeader(
-        "Cache-Control",
-        "no-store"
-      );
+      res.setHeader("Content-Type", "audio/wav");
+      res.setHeader("Content-Length", audioBuffer.length);
+      res.setHeader("Cache-Control", "no-store");
 
       return res.send(audioBuffer);
 
@@ -638,56 +427,9 @@ app.post(
 );
 
 // =====================================
-// 11. معالجة الملفات والأخطاء
+// تشغيل الخادم
 // =====================================
 
-app.use((err, req, res, next) => {
-  console.error("Server Middleware Error:", err);
-
-  if (res.headersSent) {
-    return next(err);
-  }
-
-  if (err instanceof multer.MulterError) {
-    if (err.code === "LIMIT_FILE_SIZE") {
-      return res.status(413).json({
-        success: false,
-        error: "حجم التسجيل أكبر من الحد المسموح."
-      });
-    }
-
-    return res.status(400).json({
-      success: false,
-      error: "حدث خطأ أثناء رفع الملف الصوتي."
-    });
-  }
-
-  if (err.message === "Origin not allowed") {
-    return res.status(403).json({
-      success: false,
-      error: "هذا المصدر غير مسموح له بالاتصال بالخادم."
-    });
-  }
-
-  return res.status(500).json({
-    success: false,
-    error: "حدث خطأ داخلي في الخادم."
-  });
+app.listen(PORT, () => {
+  console.log(`Esal AI server running on port ${PORT}`);
 });
-
-// =====================================
-// 12. تشغيل الخادم
-// =====================================
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log("================================");
-  console.log("       ESAL AI SERVER");
-  console.log("================================");
-  console.log("Status: Online");
-  console.log("Port:", PORT);
-  console.log("Model:", MODEL);
-  console.log("Groq API:", GROQ_API_KEY ? "Configured" : "Missing");
-  console.log("Version: 2.0");
-  console.log("================================");
-});
-
