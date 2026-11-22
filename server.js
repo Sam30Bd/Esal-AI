@@ -341,48 +341,8 @@ app.post(
 );
 
 // =====================================
-// تحويل النص إلى صوت طبيعي (العربية والإنجليزية)
+// تحويل النص إلى صوت طبيعي عبر ElevenLabs
 // =====================================
-
-function splitSpeechText(text, maxLength = 180) {
-  const normalized = text
-    .replace(/\s+/g, " ")
-    .replace(/([،؛])\s*/g, "$1 ")
-    .trim();
-
-  const sentences = normalized.match(/[^.!?؟。]+[.!?؟。]?/g) || [normalized];
-  const chunks = [];
-  let current = "";
-
-  for (const sentence of sentences) {
-    const words = sentence.trim().split(/\s+/);
-
-    for (const word of words) {
-      if (!word) continue;
-
-      if (word.length > maxLength) {
-        if (current) chunks.push(current.trim());
-        current = "";
-        for (let i = 0; i < word.length; i += maxLength) {
-          chunks.push(word.slice(i, i + maxLength));
-        }
-        continue;
-      }
-
-      const candidate = current ? current + " " + word : word;
-
-      if (candidate.length > maxLength) {
-        if (current) chunks.push(current.trim());
-        current = word;
-      } else {
-        current = candidate;
-      }
-    }
-  }
-
-  if (current.trim()) chunks.push(current.trim());
-  return chunks;
-}
 
 app.post(
   "/api/speech",
@@ -391,11 +351,7 @@ app.post(
     try {
       if (!requireApiKey(res)) return;
 
-      const {
-        text,
-        language = "ar",
-        voice
-      } = req.body || {};
+      const { text, language = "ar" } = req.body || {};
 
       if (typeof text !== "string" || !text.trim()) {
         return res.status(400).json({
@@ -404,38 +360,73 @@ app.post(
         });
       }
 
-      if (text.length > 3000) {
+      if (text.length > 9000) {
         return res.status(413).json({
           success: false,
-          error: "النص طويل جداً. الحد الأقصى 3000 حرف في المرة الواحدة."
+          error: "النص طويل جداً لتحويله إلى صوت."
         });
       }
 
+      const elevenKey = process.env.ELEVENLABS_API_KEY;
+      const voiceId = process.env.ELEVENLABS_VOICE_ID;
       const lang = String(language).toLowerCase();
+
+      if (elevenKey && voiceId) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 120000);
+
+        try {
+          const response = await fetch(
+            `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`,
+            {
+              method: "POST",
+              headers: {
+                "xi-api-key": elevenKey,
+                "Content-Type": "application/json",
+                "Accept": "audio/mpeg"
+              },
+              body: JSON.stringify({
+                text: text.trim(),
+                model_id: "eleven_multilingual_v2",
+                voice_settings: {
+                  stability: 0.42,
+                  similarity_boost: 0.78,
+                  style: 0.18,
+                  use_speaker_boost: true
+                }
+              }),
+              signal: controller.signal
+            }
+          );
+
+          if (!response.ok) {
+            const detail = await response.text();
+            console.error("ElevenLabs TTS Error:", detail);
+            return res.status(502).json({
+              success: false,
+              error: "تعذر إنشاء الصوت من ElevenLabs. تحقق من مفتاح الخدمة ومعرّف الصوت ورصيد الحساب."
+            });
+          }
+
+          const audio = Buffer.from(await response.arrayBuffer());
+          res.setHeader("Content-Type", "audio/mpeg");
+          res.setHeader("Content-Length", audio.length);
+          res.setHeader("Cache-Control", "no-store");
+          res.setHeader("X-Esal-TTS-Provider", "ElevenLabs");
+          return res.send(audio);
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+
+      // Fallback الحالي عند عدم ضبط ElevenLabs
       const isArabic = lang.startsWith("ar");
       const isEnglish = lang.startsWith("en");
 
       if (!isArabic && !isEnglish) {
         return res.status(400).json({
           success: false,
-          error: "خدمة الصوت الطبيعية على الخادم تدعم العربية والإنجليزية حالياً. استخدم صوت الجهاز للغات الأخرى."
-        });
-      }
-
-      const allowedArabicVoices = [
-        "abdullah", "fahad", "sultan", "lulwa", "noura", "aisha"
-      ];
-      const allowedEnglishVoices = [
-        "autumn", "diana", "hannah", "austin", "daniel", "troy"
-      ];
-
-      const selectedVoice = String(voice || (isArabic ? "fahad" : "troy")).toLowerCase();
-      const allowedVoices = isArabic ? allowedArabicVoices : allowedEnglishVoices;
-
-      if (!allowedVoices.includes(selectedVoice)) {
-        return res.status(400).json({
-          success: false,
-          error: "الصوت المختار غير متاح لهذه اللغة."
+          error: "للحصول على صوت طبيعي متعدد اللغات، أضف إعدادات ElevenLabs إلى Render."
         });
       }
 
@@ -443,52 +434,39 @@ app.post(
         ? "canopylabs/orpheus-arabic-saudi"
         : "canopylabs/orpheus-v1-english";
 
-      const chunks = splitSpeechText(text.trim(), 180);
-      const audioChunks = [];
-
-      for (const chunk of chunks) {
-        const response = await groqRequest(
-          "/audio/speech",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              model,
-              input: chunk,
-              voice: selectedVoice,
-              response_format: "wav"
-            }),
-            timeout: 120000
-          }
-        );
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Speech Error:", errorText);
-
-          return res.status(502).json({
-            success: false,
-            error: "تعذر إنشاء الصوت. تحقق من تفعيل نموذج Orpheus في حساب Groq."
-          });
+      const voice = isArabic ? "fahad" : "troy";
+      const response = await groqRequest(
+        "/audio/speech",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            input: text.trim().slice(0, 1800),
+            voice,
+            response_format: "wav"
+          }),
+          timeout: 120000
         }
+      );
 
-        const audioBuffer = Buffer.from(await response.arrayBuffer());
-        audioChunks.push(audioBuffer.toString("base64"));
+      if (!response.ok) {
+        const detail = await response.text();
+        console.error("Groq Speech Error:", detail);
+        return res.status(502).json({
+          success: false,
+          error: "تعذر إنشاء الصوت. أضف مفتاح ElevenLabs للحصول على صوت متعدد اللغات."
+        });
       }
 
-      return res.json({
-        success: true,
-        language: isArabic ? "ar" : "en",
-        voice: selectedVoice,
-        mimeType: "audio/wav",
-        audioChunks
-      });
+      const audio = Buffer.from(await response.arrayBuffer());
+      res.setHeader("Content-Type", "audio/wav");
+      res.setHeader("Content-Length", audio.length);
+      res.setHeader("Cache-Control", "no-store");
+      return res.send(audio);
 
     } catch (error) {
       console.error("Speech Error:", error);
-
       return res.status(500).json({
         success: false,
         error: getErrorMessage(error)
