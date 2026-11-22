@@ -1,6 +1,5 @@
 import express from "express";
 import cors from "cors";
-import OpenAI from "openai";
 
 const app = express();
 
@@ -18,40 +17,53 @@ app.post("/api/chat", async (req, res) => {
     const { message } = req.body;
 
     if (!message || typeof message !== "string") {
-      return res.status(400).json({
-        error: "يرجى كتابة سؤالك أولاً."
-      });
+      return res.status(400).json({ error: "يرجى كتابة سؤالك أولاً." });
     }
 
-    if (message.length > 5000) {
-      return res.status(400).json({
-        error: "الرسالة طويلة جداً."
-      });
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(500).json({ error: "مفتاح Groq غير مضبوط." });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    const response = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            {
+              role: "system",
+              content: "أنت Esal-AI، مساعد ذكي. أجب باللغة العربية بوضوح وبأسلوب مفيد."
+            },
+            {
+              role: "user",
+              content: message
+            }
+          ],
+          temperature: 0.7
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Groq Error:", data);
       return res.status(500).json({
-        error: "مفتاح الذكاء الاصطناعي غير مضبوط."
+        error: "تعذر الحصول على إجابة من الذكاء الاصطناعي."
       });
     }
-
-    const client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
-
-    const response = await client.responses.create({
-      model: "gpt-6.2-astra",
-      instructions: "أنت Esal-AI، مساعد ذكي يتحدث العربية والإنجليزية. أجب بوضوح وبأسلوب مفيد.",
-      input: message
-    });
 
     res.json({
-      reply: response.output_text
+      reply: data.choices[0].message.content
     });
 
   } catch (error) {
     console.error("Esal-AI Error:", error);
-
     res.status(500).json({
       error: "حدث خطأ أثناء معالجة سؤالك."
     });
