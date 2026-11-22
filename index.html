@@ -9,55 +9,48 @@
   <meta name="description" content="إسال AI - مساعدك الذكي للكتابة والتعلم والترجمة والمحادثة الصوتية.">
   <title>إسال AI | مساعدك الذكي</title>
   <style>
-    :root{--bg:#0b1020;--panel:#121a2d;--line:#293653;--text:#f4f7ff;--muted:#a8b4cc}
-    *{box-sizing:border-box}
-    body{margin:0;background:radial-gradient(ellipse at top,#182746 0,#0b1020 55%);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;min-height:100vh}
-    button,textarea{font:inherit}
-    button{cursor:pointer}
-    .shell{max-width:1000px;margin:auto;padding:16px 14px 34px}
-    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 2px 20px}
-    .brand{display:flex;align-items:center;gap:11px}
-    .logo{width:45px;height:45px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(135deg,#7aa7ff,#4e61dc);font-size:23px;box-shadow:0 8px 24px #4779ee44}
-    .brand h1{font-size:20px;margin:0}
-    .brand p{margin:3px 0 0;color:var(--muted);font-size:12px}
-    .status{font-size:12px;color:#9ce5c8;border:1px solid #28644f;background:#14372e;padding:7px 10px;border-radius:30px;white-space:nowrap}
-    .hero{padding:24px 18px;text-align:center;border:1px solid #304366;border-radius:23px;background:linear-gradient(135deg,#1a2c4b,#17213b 60%,#28295a);box-shadow:0 15px 45px #0003}
-    .eyebrow{color:#a8c6ff;font-size:12px;letter-spacing:.3px}
-    .hero h2{font-size:clamp(25px,6vw,38px);margin:9px 0}
-    .hero p{color:#c1cce0;line-height:1.8;margin:0 auto;max-width:600px;font-size:14px}
-    .tools-title{margin:24px 2px 12px;font-size:16px}
-    .tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-    .tool{border:1px solid var(--line);background:#111a2d;color:var(--text);border-radius:16px;padding:14px 12px;text-align:right;min-height:84px;transition:.18s}
-    .tool:active{transform:scale(.98)}
-    .tool.active{border-color:#719cff;background:#1b2c4d;box-shadow:inset 0 0 0 1px #719cff44}
-    .tool .emoji{font-size:21px}
-    .tool strong{display:block;font-size:14px;margin:5px 0 2px}
-    .tool small{color:var(--muted);font-size:11px}
-    .chat{margin-top:16px;border:1px solid var(--line);border-radius:20px;overflow:hidden;background:#10182a;box-shadow:0 15px 40px #0003}
-    .chat-head{padding:14px 16px;background:#17233b;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line)}
-    .chat-head strong{font-size:14px}
-    .chat-head small{display:block;color:var(--muted);font-size:11px;margin-top:3px}
-    .ghost{background:transparent;border:1px solid #405273;color:#dce6ff;padding:8px 11px;border-radius:10px;font-size:12px}
-    .messages{padding:16px;min-height:220px;max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:13px;scroll-behavior:smooth}
-    .welcome{text-align:center;color:var(--muted);font-size:13px;line-height:1.9;padding:25px 10px}
-    .bubble{max-width:92%;padding:12px 14px;border-radius:16px;line-height:1.85;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
-    .user{align-self:flex-start;background:#254b8c;border-bottom-right-radius:5px}
-    .assistant{align-self:flex-end;background:#1c2941;border:1px solid #30415f;border-bottom-left-radius:5px}
-    .bubble-label{font-size:10px;color:#aabbd9;margin-bottom:4px}
-    .bubble-actions{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}
-    .mini{border:1px solid #435675;background:#17243a;color:#dbe6fb;padding:6px 9px;border-radius:8px;font-size:11px}
-    .composer{padding:13px;border-top:1px solid var(--line);background:#121c30}
-    .input-wrap{display:flex;align-items:flex-end;gap:8px}
-    textarea{width:100%;min-height:54px;max-height:150px;resize:vertical;border-radius:14px;border:1px solid #3a4b6b;background:#0c1425;color:var(--text);padding:13px;outline:none;line-height:1.6}
-    textarea:focus{border-color:#79a4ff;box-shadow:0 0 0 3px #6797ff20}
-    .send{min-width:54px;height:52px;border:0;border-radius:14px;background:linear-gradient(135deg,#6c9cff,#3975ed);color:white;font-size:21px}
-    .send:disabled{opacity:.5}
-    .composer-tools{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
-    .action{border:1px solid #3c4d6b;background:#1a2942;color:#dce7ff;border-radius:10px;padding:8px 11px;font-size:12px}
-    .action.recording{background:#592b38;border-color:#b95069;color:#fff}
-    .hint{color:#8190aa;font-size:11px;line-height:1.7;margin:10px 3px 0}
-    footer{text-align:center;color:#71809c;font-size:11px;padding:20px 5px}
-    @media(min-width:650px){.shell{padding:24px 22px 40px}.tools{grid-template-columns:repeat(4,1fr)}.tool{text-align:center}.bubble{max-width:82%}.hero{padding:34px 24px}}
+:root{color-scheme:dark;--bg:#080d18;--panel:#101a2c;--panel2:#14223a;--line:#263956;--text:#f4f7ff;--muted:#98a9c5;--blue:#719cff;--cyan:#57d6d0}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -15%,#243c68 0,transparent 48%),linear-gradient(160deg,#080d18,#0b1323 65%,#0c1020);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif}
+button,textarea,select{font:inherit}button{cursor:pointer}
+.shell{max-width:1180px;margin:auto;padding:18px 16px 35px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 2px 22px}
+.brand{display:flex;align-items:center;gap:12px}.logo{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(140deg,#83b2ff,#5865e8);font-size:25px;box-shadow:0 10px 30px #5479df55}
+.brand h1{font-size:21px;margin:0;letter-spacing:-.5px}.brand p{margin:4px 0 0;color:var(--muted);font-size:12px}
+.status{font-size:12px;color:#9be6c6;border:1px solid #28644f;background:#14372e;padding:8px 12px;border-radius:30px}
+.hero{position:relative;overflow:hidden;padding:25px 23px;border:1px solid #344a70;border-radius:24px;background:linear-gradient(120deg,#1b3154,#182541 55%,#282c5b);box-shadow:0 18px 50px #0003}
+.hero:after{content:"✦";position:absolute;left:30px;top:-28px;font-size:150px;color:#ffffff0a;pointer-events:none}
+.eyebrow{color:#a9c7ff;font-size:12px;font-weight:650}.hero h2{font-size:clamp(25px,5vw,37px);margin:9px 0 7px;letter-spacing:-.8px}.hero p{color:#c4d0e4;line-height:1.9;margin:0;max-width:700px;font-size:14px}
+.tools-title{margin:25px 2px 12px;font-size:15px}.tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tool{border:1px solid var(--line);background:linear-gradient(145deg,#111e33,#0e192b);color:var(--text);border-radius:16px;padding:13px 12px;text-align:right;min-height:82px;transition:.18s}
+.tool:active{transform:scale(.98)}.tool.active{border-color:#719cff;background:linear-gradient(145deg,#203b65,#172a49);box-shadow:inset 0 0 0 1px #719cff33}
+.tool .emoji{font-size:20px}.tool strong{display:block;font-size:13px;margin:5px 0 2px}.tool small{color:var(--muted);font-size:11px}
+.chat{margin-top:17px;border:1px solid #2b3e5d;border-radius:23px;overflow:hidden;background:#0d1728;box-shadow:0 20px 55px #0004}
+.chat-head{padding:15px 17px;background:linear-gradient(100deg,#172943,#17233b);display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line)}
+.chat-head strong{font-size:14px}.chat-head small{display:block;color:var(--muted);font-size:11px;margin-top:4px}
+.ghost{background:#1c2d49;border:1px solid #425a7d;color:#e4edff;padding:9px 12px;border-radius:11px;font-size:12px;white-space:nowrap}
+.messages{padding:18px;min-height:300px;max-height:58vh;overflow-y:auto;display:flex;flex-direction:column;gap:15px;scroll-behavior:smooth}
+.welcome{text-align:center;color:var(--muted);font-size:13px;line-height:2;padding:35px 12px}
+.bubble{max-width:92%;padding:13px 15px;border-radius:18px;line-height:1.95;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 5px 16px #0002}
+.user{align-self:flex-start;background:linear-gradient(135deg,#28528e,#244575);border-bottom-right-radius:5px}
+.assistant{align-self:flex-end;background:linear-gradient(145deg,#182941,#152338);border:1px solid #2e4260;border-bottom-left-radius:5px}
+.bubble-label{font-size:10px;color:#aec4e8;margin-bottom:5px;font-weight:700}
+.bubble-actions{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}.mini{border:1px solid #405778;background:#1b2c45;color:#e1ebff;padding:7px 10px;border-radius:9px;font-size:11px}
+.composer{padding:14px;border-top:1px solid var(--line);background:#111d30}
+.input-wrap{display:flex;align-items:flex-end;gap:9px}
+textarea{width:100%;min-height:58px;max-height:170px;resize:vertical;border-radius:16px;border:1px solid #3a5274;background:#0a1425;color:var(--text);padding:14px;outline:none;line-height:1.7}
+textarea:focus,select:focus{border-color:#79a4ff;box-shadow:0 0 0 3px #6797ff20}
+.send{min-width:56px;height:56px;border:0;border-radius:16px;background:linear-gradient(135deg,#78a7ff,#426fe8);color:white;font-size:22px;box-shadow:0 8px 20px #4777df44}
+.send:disabled{opacity:.5}
+.composer-tools{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap;align-items:center}
+.action{border:1px solid #3c5272;background:#1a2a43;color:#dce7ff;border-radius:11px;padding:9px 11px;font-size:12px}
+.action.recording{background:#592b38;border-color:#b95069;color:#fff}
+select{border:1px solid #3c5272;background:#0d192b;color:#e6eeff;border-radius:10px;padding:9px 10px;font-size:12px;max-width:100%}
+.select-label{font-size:11px;color:#aabbd4}
+.hint{color:#8190aa;font-size:11px;line-height:1.8;margin:11px 3px 0}
+footer{text-align:center;color:#71809c;font-size:11px;padding:22px 5px}
+@media(min-width:680px){.shell{padding:25px 24px 45px}.tools{grid-template-columns:repeat(4,1fr)}.tool{text-align:center}.bubble{max-width:84%}.hero{padding:34px 30px}.messages{padding:23px;min-height:350px}}
+@media(max-width:420px){.shell{padding:12px 10px 28px}.hero{padding:21px 16px}.chat-head{padding:12px}.messages{padding:12px}.bubble{max-width:96%;font-size:13px}.ghost{padding:8px;font-size:11px}}
   </style>
 </head>
 <body>
@@ -65,54 +58,69 @@
   <header>
     <div class="brand">
       <div class="logo">✦</div>
-      <div>
-        <h1>إسال <span style="color:#8fb4ff">AI</span></h1>
-        <p>مساعدك الذكي باللغة التي تفضلها</p>
-      </div>
+      <div><h1>إسال <span style="color:#8fb4ff">AI</span></h1><p>مساعدك الذكي • تجربة أكثر ذكاءً</p></div>
     </div>
-    <div class="status">● جاهز للمساعدة</div>
+    <div class="status">● متصل وجاهز</div>
   </header>
 
   <section class="hero">
-    <div class="eyebrow">ذكاء اصطناعي • كتابة • تعلم • ترجمة</div>
+    <div class="eyebrow">مساعد ذكي متعدد الاستخدامات</div>
     <h2>مرحباً بك في إسال AI</h2>
-    <p>اسأل، تعلّم، اكتب، وترجم. ابدأ محادثة جديدة أو اختر إحدى الأدوات، وسيحاول مساعدك فهم طلبك والرد بلغتك.</p>
+    <p>تحدث بلغتك، اسأل بحرية، واحصل على إجابات واضحة. يمكنك أيضاً الاستماع إلى الردود بأصوات طبيعية للعربية والإنجليزية، أو استخدام أصوات جهازك للغات الأخرى.</p>
   </section>
 
-  <h3 class="tools-title">اختر أداة أو اكتب سؤالك مباشرة</h3>
+  <h3 class="tools-title">اختر طريقة المساعدة</h3>
   <section class="tools" aria-label="الأدوات">
-    <button class="tool active" data-tool="مساعد عام"><span class="emoji">🤖</span><strong>مساعد عام</strong><small>اسأل عن أي موضوع</small></button>
-    <button class="tool" data-tool="كاتب المقالات"><span class="emoji">✍️</span><strong>كاتب المقالات</strong><small>مقالات ورسائل ونصوص</small></button>
-    <button class="tool" data-tool="مولد الأفكار"><span class="emoji">💡</span><strong>مولد الأفكار</strong><small>أفكار ومشاريع مبتكرة</small></button>
-    <button class="tool" data-tool="المترجم"><span class="emoji">🌍</span><strong>المترجم</strong><small>ترجمة طبيعية ودقيقة</small></button>
-    <button class="tool" data-tool="المساعد الدراسي"><span class="emoji">📚</span><strong>المساعد الدراسي</strong><small>شرح وتلخيص وتمارين</small></button>
-    <button class="tool" data-tool="مصحح النصوص"><span class="emoji">📝</span><strong>مصحح النصوص</strong><small>تدقيق وتحسين الصياغة</small></button>
-    <button class="tool" data-tool="مساعد البرمجة"><span class="emoji">💻</span><strong>مساعد البرمجة</strong><small>شرح وأكواد وتصحيح</small></button>
-    <button class="tool" data-tool="التلخيص"><span class="emoji">📑</span><strong>تلخيص النصوص</strong><small>استخراج أهم النقاط</small></button>
+    <button class="tool active" data-tool="مساعد عام"><span class="emoji">✦</span><strong>مساعد ذكي</strong><small>اسأل عن أي شيء</small></button>
+    <button class="tool" data-tool="كاتب المقالات"><span class="emoji">✍️</span><strong>الكتابة</strong><small>مقالات ورسائل ونصوص</small></button>
+    <button class="tool" data-tool="مولد الأفكار"><span class="emoji">💡</span><strong>الأفكار</strong><small>مشاريع وحلول مبتكرة</small></button>
+    <button class="tool" data-tool="المترجم"><span class="emoji">🌍</span><strong>الترجمة</strong><small>لغات متعددة</small></button>
+    <button class="tool" data-tool="المساعد الدراسي"><span class="emoji">📚</span><strong>التعلم</strong><small>شرح وتلخيص وتمارين</small></button>
+    <button class="tool" data-tool="مصحح النصوص"><span class="emoji">📝</span><strong>تحسين النصوص</strong><small>تدقيق وصياغة احترافية</small></button>
+    <button class="tool" data-tool="مساعد البرمجة"><span class="emoji">💻</span><strong>البرمجة</strong><small>أكواد وحلول تقنية</small></button>
+    <button class="tool" data-tool="التلخيص"><span class="emoji">📑</span><strong>التلخيص</strong><small>أهم النقاط بسرعة</small></button>
   </section>
 
   <section class="chat">
     <div class="chat-head">
-      <div>
-        <strong id="toolName">محادثة مع إسال AI</strong>
-        <small>تُرسل رسائلك إلى خدمة الذكاء الاصطناعي المرتبطة بالموقع</small>
-      </div>
+      <div><strong id="toolName">محادثة مع إسال AI</strong><small>محادثة ذكية مع حفظ السجل على جهازك</small></div>
       <button class="ghost" id="newChat">＋ محادثة جديدة</button>
     </div>
     <div class="messages" id="messages" aria-live="polite">
-      <div class="welcome">أهلاً بك! 👋<br>اكتب سؤالك في الأسفل، أو اختر إحدى الأدوات لبدء الاستخدام.</div>
+      <div class="welcome">أهلاً بك في إسال AI 👋<br>اكتب سؤالك بالأسفل، وسأساعدك خطوة بخطوة.</div>
     </div>
     <div class="composer">
       <div class="input-wrap">
-        <textarea id="prompt" rows="2" placeholder="اكتب رسالتك هنا... (Enter للإرسال، Shift + Enter لسطر جديد)"></textarea>
+        <textarea id="prompt" rows="2" placeholder="اكتب رسالتك هنا..."></textarea>
         <button class="send" id="send" aria-label="إرسال">➤</button>
       </div>
       <div class="composer-tools">
         <button class="action" id="mic">🎙️ تسجيل صوتي</button>
         <button class="action" id="readLast">🔊 قراءة آخر إجابة</button>
-        <button class="action" id="stopRead">⏹ إيقاف القراءة</button>
+        <button class="action" id="stopRead">⏹ إيقاف الصوت</button>
       </div>
-      <div class="hint">تنبيه: لا ترسل كلمات مرور أو بيانات شخصية حساسة. قد تُحفظ المحادثة محلياً على هذا الجهاز لتسهيل متابعة السياق.</div>
+      <div class="composer-tools">
+        <span class="select-label">لغة القراءة</span>
+        <select id="speechLanguage" aria-label="لغة القراءة">
+          <option value="auto">تلقائي حسب النص</option>
+          <option value="ar">العربية</option>
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
+          <option value="es">Español</option>
+          <option value="tr">Türkçe</option>
+          <option value="it">Italiano</option>
+          <option value="pt">Português</option>
+          <option value="ru">Русский</option>
+          <option value="hi">हिन्दी</option>
+          <option value="zh">中文</option>
+          <option value="ja">日本語</option>
+          <option value="ko">한국어</option>
+        </select>
+        <span class="select-label">الصوت</span>
+        <select id="speechVoice" aria-label="اختيار الصوت"></select>
+      </div>
+      <div class="hint">الصوت العربي والإنجليزي يستخدم نماذج طبيعية من Groq. اللغات الأخرى تستخدم الأصوات المتاحة في جهازك ومتصفحك. لا ترسل كلمات مرور أو بيانات حساسة.</div>
     </div>
   </section>
   <footer>إسال AI © 2026 — مساعدك الذكي</footer>
@@ -132,6 +140,8 @@
   let recorder = null;
   let audioChunks = [];
   let busy = false;
+  let activeAudio = null;
+  let activeObjectUrls = [];
 
   const $ = id => document.getElementById(id);
   const messagesEl = $("messages");
@@ -360,28 +370,175 @@
     }
   }
 
-  function speakText(text) {
-    stopSpeech();
+  function detectSpeechLanguage(text) {
+    const chosen = $("speechLanguage")?.value || "auto";
+    if (chosen !== "auto") return chosen;
+    if (/[\\u0600-\\u06FF]/.test(text)) return "ar";
+    if (/[\\u0400-\\u04FF]/.test(text)) return "ru";
+    if (/[\\u4E00-\\u9FFF]/.test(text)) return "zh";
+    if (/[\\u3040-\\u30FF]/.test(text)) return "ja";
+    if (/[\\uAC00-\\uD7AF]/.test(text)) return "ko";
+    return "en";
+  }
 
-    if (!("speechSynthesis" in window)) {
-      alert("ميزة قراءة النص غير مدعومة في هذا المتصفح.");
+  function refreshVoiceOptions() {
+    const lang = $("speechLanguage").value;
+    const voiceSelect = $("speechVoice");
+    voiceSelect.innerHTML = "";
+
+    const addOption = (value, label) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      voiceSelect.append(option);
+    };
+
+    if (lang === "ar" || lang === "auto") {
+      addOption("fahad", "فهد — عربي");
+      addOption("abdullah", "عبدالله — عربي");
+      addOption("sultan", "سلطان — عربي");
+      addOption("lulwa", "لولوة — عربي");
+      addOption("noura", "نورة — عربي");
+      addOption("aisha", "عائشة — عربي");
       return;
     }
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    if (lang === "en") {
+      addOption("troy", "Troy — Male");
+      addOption("daniel", "Daniel — Male");
+      addOption("austin", "Austin — Male");
+      addOption("hannah", "Hannah — Female");
+      addOption("diana", "Diana — Female");
+      addOption("autumn", "Autumn — Female");
+      return;
+    }
 
-    utterance.lang =
-      /[\u0600-\u06FF]/.test(text) ? "ar-SA" :
-      (/[äöüßÄÖÜ]/.test(text) ? "de-DE" : "en-US");
+    if (!("speechSynthesis" in window)) {
+      addOption("", "لا توجد أصوات محلية");
+      return;
+    }
 
-    utterance.rate = 1;
-    speechSynthesis.speak(utterance);
+    const voices = speechSynthesis.getVoices()
+      .filter(v => v.lang.toLowerCase().startsWith(lang));
+    if (!voices.length) {
+      addOption("", "لا يوجد صوت مثبت لهذه اللغة");
+      return;
+    }
+    voices.forEach(v => addOption(v.name, v.name));
+  }
+
+  $("speechLanguage").addEventListener("change", refreshVoiceOptions);
+  if ("speechSynthesis" in window) {
+    speechSynthesis.onvoiceschanged = refreshVoiceOptions;
+  }
+  refreshVoiceOptions();
+
+  function playAudioBlob(blob) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      activeObjectUrls.push(url);
+      const audio = new Audio(url);
+      activeAudio = audio;
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        activeObjectUrls = activeObjectUrls.filter(x => x !== url);
+        if (activeAudio === audio) activeAudio = null;
+        resolve();
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        activeObjectUrls = activeObjectUrls.filter(x => x !== url);
+        if (activeAudio === audio) activeAudio = null;
+        reject(new Error("تعذر تشغيل ملف الصوت."));
+      };
+      audio.play().catch(reject);
+    });
+  }
+
+  async function speakWithGroq(text, language) {
+    if (text.length > 3000) {
+      throw new Error("الإجابة طويلة جداً للقراءة دفعة واحدة. انسخ جزءاً أقصر.");
+    }
+
+    const response = await fetch(API + "/api/speech", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        text,
+        language,
+        voice: $("speechVoice").value
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "تعذر إنشاء الصوت الطبيعي.");
+    }
+
+    for (const encoded of data.audioChunks || []) {
+      const binary = atob(encoded);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      await playAudioBlob(new Blob([bytes], {type: data.mimeType || "audio/wav"}));
+    }
+  }
+
+  function speakWithDevice(text, language) {
+    return new Promise((resolve, reject) => {
+      if (!("speechSynthesis" in window)) {
+        reject(new Error("متصفحك لا يدعم قراءة النص."));
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = language;
+      const voices = speechSynthesis.getVoices();
+      const selectedName = $("speechVoice").value;
+      const selected = voices.find(v => v.name === selectedName);
+      const matching = voices.find(v => v.lang.toLowerCase().startsWith(language));
+      if (selected || matching) utterance.voice = selected || matching;
+      utterance.rate = 0.96;
+      utterance.pitch = 1;
+      utterance.onend = resolve;
+      utterance.onerror = () => reject(new Error("تعذر تشغيل صوت الجهاز."));
+      speechSynthesis.speak(utterance);
+    });
+  }
+
+  async function speakText(text) {
+    stopSpeech();
+    const language = detectSpeechLanguage(text);
+    const languageTag = {
+      ar:"ar-SA", en:"en-US", de:"de-DE", fr:"fr-FR",
+      es:"es-ES", tr:"tr-TR", it:"it-IT", pt:"pt-PT",
+      ru:"ru-RU", hi:"hi-IN", zh:"zh-CN", ja:"ja-JP", ko:"ko-KR"
+    }[language] || language;
+
+    try {
+      if (language === "ar" || language === "en") {
+        await speakWithGroq(text, language);
+      } else {
+        await speakWithDevice(text, languageTag);
+      }
+    } catch (error) {
+      if (language === "ar" || language === "en") {
+        try {
+          await speakWithDevice(text, languageTag);
+          return;
+        } catch (_) {}
+      }
+      alert(error.message || "تعذر تشغيل الصوت.");
+    }
   }
 
   function stopSpeech() {
-    if ("speechSynthesis" in window) {
-      speechSynthesis.cancel();
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
+    if (activeAudio) {
+      activeAudio.pause();
+      activeAudio.currentTime = 0;
+      activeAudio = null;
     }
+    activeObjectUrls.forEach(url => URL.revokeObjectURL(url));
+    activeObjectUrls = [];
   }
 
   $("readLast").addEventListener("click", () => {
@@ -404,7 +561,7 @@
     const form = new FormData();
     const ext = blob.type.includes("mp4") ? "mp4" : "webm";
 
-    form.append("audio", blob, "recording." + ext);
+    form.append("file", blob, "recording." + ext);
 
     micBtn.textContent = "⏳ جارٍ تحويل الصوت";
     micBtn.disabled = true;
