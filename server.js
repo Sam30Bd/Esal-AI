@@ -336,6 +336,82 @@ app.post(
   }
 );
 
+// Text-to-Speech API
+app.post("/api/speech", async (req, res) => {
+  try {
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(500).json({
+        error: "Groq API key is missing."
+      });
+    }
+
+    const { text, language } = req.body;
+
+    if (!text || typeof text !== "string" || !text.trim()) {
+      return res.status(400).json({
+        error: "Please provide text."
+      });
+    }
+
+    if (text.length > 200) {
+      return res.status(400).json({
+        error: "Text must not exceed 200 characters."
+      });
+    }
+
+    const isArabic = language === "ar";
+
+    const model = isArabic
+      ? "canopylabs/orpheus-arabic-saudi"
+      : "canopylabs/orpheus-v1-english";
+
+    const voice = isArabic ? "fahad" : "troy";
+
+    const response = await fetch(
+      "https://api.groq.com/openai/v1/audio/speech",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model,
+          input: text,
+          voice,
+          response_format: "wav"
+        }),
+        signal: AbortSignal.timeout(60000)
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Groq Speech Error:", errorText);
+
+      return res.status(502).json({
+        error: "تعذر إنشاء الصوت حالياً."
+      });
+    }
+
+    const audioBuffer = Buffer.from(
+      await response.arrayBuffer()
+    );
+
+    res.setHeader("Content-Type", "audio/wav");
+    res.setHeader("Content-Length", audioBuffer.length);
+
+    return res.send(audioBuffer);
+
+  } catch (error) {
+    console.error("Speech Error:", error);
+
+    return res.status(500).json({
+      error: "حدث خطأ أثناء إنشاء الصوت."
+    });
+  }
+});
+
 // Start server
 app.listen(PORT, "0.0.0.0", () => {
   console.log("--------------------------------");
