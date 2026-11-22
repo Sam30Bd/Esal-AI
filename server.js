@@ -5,292 +5,463 @@ import multer from "multer";
 
 const app = express();
 
+// =====================================
+// 1. إعدادات الخادم
+// =====================================
+
+const PORT = process.env.PORT || 3000;
+
+const MODEL =
+  process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+
+const GROQ_BASE_URL =
+  "https://api.groq.com/openai/v1";
+
+const MAX_MESSAGE_LENGTH = 30000;
+const MAX_HISTORY_MESSAGES = 20;
+const MAX_AUDIO_SIZE = 20 * 1024 * 1024;
+
+app.disable("x-powered-by");
+app.set("trust proxy", 1);
+
+app.use(express.json({
+  limit: "2mb"
+}));
+
+// =====================================
+// 2. إعدادات CORS
+// =====================================
+
+const allowedOrigins = (
+  process.env.ALLOWED_ORIGINS || "*"
+)
+  .split(",")
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin(origin, callback) {
+    if (
+      !origin ||
+      allowedOrigins.includes("*") ||
+      allowedOrigins.includes(origin)
+    ) {
+      return callback(null, true);
+    }
+
+    return callback(new Error("Origin not allowed"));
+  },
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
+// =====================================
+// 3. تحديد معدل الطلبات
+// =====================================
+
+const requestCounts = new Map();
+
+function rateLimit(options = {}) {
+  const windowMs = options.windowMs || 60000;
+  const max = options.max || 30;
+
+  return (req, res, next) => {
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
+    const now = Date.now();
+
+    let record = requestCounts.get(ip);
+
+    if (!record || now - record.start > windowMs) {
+      record = {
+        start: now,
+        count: 0
+      };
+    }
+
+    record.count++;
+    requestCounts.set(ip, record);
+
+    res.setHeader("RateLimit-Limit", max);
+    res.setHeader(
+      "RateLimit-Remaining",
+      Math.max(0, max - record.count)
+    );
+
+    if (record.count > max) {
+      return res.status(429).json({
+        success: false,
+        error: "طلبات كثيرة جداً. انتظر قليلاً ثم حاول مجدداً."
+      });
+    }
+
+    next();
+  };
+}
+
+// تنظيف بيانات تحديد الطلبات القديمة
+setInterval(() => {
+  const now = Date.now();
+
+  for (const [ip, record] of requestCounts) {
+    if (now - record.start > 120000) {
+      requestCounts.delete(ip);
+    }
+  }
+}, 120000).unref();
+
+// =====================================
+// 4. إعداد رفع الملفات الصوتية
+// =====================================
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 20 * 1024 * 1024
+    fileSize: MAX_AUDIO_SIZE,
+    files: 1
+  },
+  fileFilter(req, file, callback) {
+    const allowedTypes = [
+      "audio/webm",
+      "audio/wav",
+      "audio/mpeg",
+      "audio/mp3",
+      "audio/mp4",
+      "audio/m4a",
+      "audio/ogg",
+      "audio/x-wav",
+      "video/webm"
+    ];
+
+    if (
+      allowedTypes.includes(file.mimetype) ||
+      file.mimetype.startsWith("audio/")
+    ) {
+      return callback(null, true);
+    }
+
+    callback(new Error("نوع الملف الصوتي غير مدعوم."));
   }
 });
 
-app.use(cors());
-app.use(express.json({ limit: "2mb" }));
-
-const PORT = process.env.PORT || 3000;
-const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+// =====================================
+// 5. تعليمات الذكاء الاصطناعي
+// =====================================
 
 const SYSTEM_PROMPT = `
-You are Esal-AI, an advanced, professional, intelligent,
-multilingual AI assistant.
+أنت إسال AI، مساعد ذكاء اصطناعي احترافي ومتعدد اللغات.
 
-Your mission is to provide accurate, complete, helpful,
-natural, and professional assistance in all supported languages.
+مهمتك تقديم إجابات دقيقة ومفيدة وطبيعية ومنظمة.
 
-====================================
-1. AUTOMATIC LANGUAGE DETECTION
-====================================
+اللغة:
+- اكتشف لغة المستخدم تلقائياً.
+- أجب باللغة نفسها التي يستخدمها.
+- إذا تحدث بالعربية فأجب بالعربية.
+- إذا تحدث بالألمانية فأجب بالألمانية.
+- إذا تحدث بالإنجليزية فأجب بالإنجليزية.
+- ادعم اللغات الأخرى حسب طلب المستخدم.
+- لا تخلط اللغات دون حاجة.
 
-- Automatically detect the language of every user message.
-- Always respond in the same language as the user's message.
-- Support Arabic, German, English, French, Spanish, Italian,
-  Portuguese, Turkish, Russian, Chinese, Japanese, Korean,
-  Hindi, Dutch, Swedish, Polish, and other supported languages.
-- If the user writes in Arabic, respond entirely in Arabic.
-- If the user writes in German, respond entirely in German.
-- If the user writes in English, respond entirely in English.
-- Handle mixed-language messages intelligently.
-- Never change the response language without a reason.
+المحادثة:
+- افهم سياق المحادثة والرسائل السابقة.
+- أجب عن الأسئلة المتتابعة بالاعتماد على السياق المتاح.
+- لا تطلب معلومات سبق أن قدمها المستخدم.
+- لا تدّعِ تذكر معلومات غير موجودة في المحادثة.
 
-====================================
-2. PROFESSIONAL TRANSLATION
-====================================
+جودة الإجابات:
+- قدم إجابات واضحة ومفيدة ومتكاملة.
+- استخدم العناوين والقوائم عند الحاجة.
+- اشرح الموضوعات الصعبة بطريقة سهلة.
+- لا تكرر الكلام دون داعٍ.
+- لا تخترع معلومات أو مصادر.
+- وضح عدم اليقين عند الحاجة.
 
-You are also an expert professional translator.
+الترجمة:
+- ترجم النصوص ترجمة احترافية وطبيعية.
+- حافظ على المعنى والتفاصيل والتنسيق.
+- لا تختصر الترجمة الكاملة.
+- حافظ على الأسماء والأرقام والتواريخ.
+- لا تضف تفسيرات غير مطلوبة.
 
-- Translate complete texts accurately and naturally.
-- Never omit sentences, paragraphs, or important information.
-- Preserve the original meaning, context, tone, and intent.
-- Never summarize when the user requests a full translation.
-- Never replace a full translation with an explanation.
-- Preserve headings, paragraphs, lists, and formatting.
-- Correctly translate idioms and expressions according to context.
-- Preserve names, numbers, dates, addresses, and references.
-- Use grammatically correct and natural target-language expressions.
-- Avoid literal translations that change the intended meaning.
-- Do not mix languages unnecessarily in translated content.
-- If the user specifies a target language, use that language.
-- If the user asks for a word translation, provide its meaning
-  and useful contextual alternatives when appropriate.
-- For long translations, translate as much as possible without
-  intentionally omitting content. Clearly indicate if continuation
-  is required.
+الكتابة:
+- اكتب المقالات والرسائل والمحتوى باحتراف.
+- راعِ أسلوب الكتابة والجمهور المستهدف.
+- حسّن الصياغة مع الحفاظ على المعنى عند التحرير.
 
-====================================
-3. LANGUAGE LEARNING
-====================================
+التعليم:
+- اشرح الدروس خطوة بخطوة.
+- قدم أمثلة عملية.
+- ساعد في الرياضيات والعلوم واللغات.
+- وضح خطوات الحل ولا تكتفِ بالنتيجة عند طلب الشرح.
 
-Help users learn languages professionally.
+البرمجة:
+- اكتب أكواداً واضحة ومنظمة.
+- اشرح طريقة الاستخدام.
+- انتبه للأمان والأخطاء.
+- لا تدّعِ اختبار كود لم تختبره.
 
-- Explain grammar and sentence structures.
-- Explain vocabulary and expressions.
-- Provide examples and correct pronunciation guidance in text.
-- Correct spelling and grammatical mistakes when requested.
-- Explain differences between similar words.
-- Support language learning at beginner, intermediate,
-  and advanced levels.
-- Provide exercises and practical examples when requested.
+التلخيص:
+- استخرج الأفكار الأساسية.
+- احتفظ بالمعلومات المهمة.
+- لا تغير المعنى الأصلي.
 
-====================================
-4. INTELLIGENT ASSISTANCE
-====================================
+قواعد عامة:
+- احترم تعليمات المستخدم.
+- لا تكشف مفاتيح API أو الأسرار.
+- لا تدّعِ تنفيذ عمليات لم تنفذها.
+- كن مهذباً وطبيعياً واحترافياً.
 
-Provide assistance in many areas, including:
-
-- General knowledge and education.
-- Science, mathematics, and technology.
-- Programming and software development.
-- Business and professional communication.
-- Writing emails, letters, and documents.
-- Translation and language learning.
-- Creative writing and content creation.
-- Research, explanations, and problem solving.
-- Travel, culture, and everyday questions.
-- Summarization when explicitly requested.
-- Text editing, rewriting, and proofreading.
-
-====================================
-5. CONVERSATION AND CONTEXT
-====================================
-
-- Understand the full conversation context.
-- Remember previous messages included in the conversation.
-- Understand follow-up questions.
-- Avoid asking for information already provided.
-- Give consistent and relevant answers.
-- Ask a clear question when essential information is missing.
-- Never pretend to remember information that is not available
-  in the conversation.
-
-====================================
-6. ANSWER QUALITY
-====================================
-
-- Be accurate, clear, professional, and helpful.
-- Give complete answers with useful details.
-- Organize long answers using headings and lists.
-- Avoid unnecessary repetition.
-- Do not invent facts, sources, or information.
-- Clearly communicate uncertainty when necessary.
-- Do not intentionally truncate answers.
-- Adapt the level of explanation to the user's needs.
-
-====================================
-7. IMPORTANT RULES
-====================================
-
-- Follow the user's explicit instructions.
-- Distinguish between translation requests and normal questions.
-- Do not translate a normal question unless translation is requested.
-- Do not summarize when complete translation is requested.
-- Preserve the original content when editing or translating.
-- Never claim to have performed an action that was not performed.
-- Prioritize accuracy, completeness, and user satisfaction.
-
-You are Esal-AI.
-Your goal is to provide an excellent multilingual AI experience.
+أنت إسال AI، وهدفك تقديم تجربة ذكاء اصطناعي ممتازة.
 `;
 
-// Server status
-app.get("/", (req, res) => {
-  res.json({
-    status: "online",
-    name: "Esal-AI",
-    model: MODEL,
-    message: "Esal-AI is ready to assist you."
-  });
-});
+// =====================================
+// 6. أدوات مساعدة
+// =====================================
 
-// AI Chat API
-app.post("/api/chat", async (req, res) => {
+function requireApiKey(res) {
+  if (!GROQ_API_KEY) {
+    res.status(500).json({
+      success: false,
+      error: "مفتاح Groq API غير مضبوط على الخادم."
+    });
+
+    return false;
+  }
+
+  return true;
+}
+
+function cleanSpeechText(text) {
+  return String(text || "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/https?:\/\/\S+/gi, " ")
+    .replace(/[#*_~>|]/g, " ")
+    .replace(/[^\p{L}\p{M}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getErrorMessage(error) {
+  if (error.name === "TimeoutError" ||
+      error.name === "AbortError") {
+    return "انتهت مهلة الطلب. حاول مرة أخرى.";
+  }
+
+  return "حدث خطأ أثناء معالجة طلبك. حاول لاحقاً.";
+}
+
+async function groqRequest(endpoint, options = {}) {
+  const controller = new AbortController();
+
+  const timeout = setTimeout(
+    () => controller.abort(),
+    options.timeout || 60000
+  );
+
   try {
-    const { message, history = [] } = req.body;
-
-    if (
-      !message ||
-      typeof message !== "string" ||
-      !message.trim()
-    ) {
-      return res.status(400).json({
-        error: "يرجى كتابة رسالتك أولاً."
-      });
-    }
-
-    if (message.length > 30000) {
-      return res.status(413).json({
-        error: "الرسالة طويلة جداً. يرجى تقسيم النص."
-      });
-    }
-
-    if (!process.env.GROQ_API_KEY) {
-      return res.status(500).json({
-        error: "مفتاح Groq API غير مضبوط."
-      });
-    }
-
-    if (!Array.isArray(history)) {
-      return res.status(400).json({
-        error: "سجل المحادثة غير صالح."
-      });
-    }
-
-    const safeHistory = history
-      .slice(-20)
-      .filter(
-        item =>
-          item &&
-          ["user", "assistant"].includes(item.role) &&
-          typeof item.content === "string"
-      )
-      .map(item => ({
-        role: item.role,
-        content: item.content.slice(0, 10000)
-      }));
-
-    const messages = [
-      {
-        role: "system",
-        content: SYSTEM_PROMPT
-      },
-      ...safeHistory,
-      {
-        role: "user",
-        content: message.trim()
-      }
-    ];
-
     const response = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
+      GROQ_BASE_URL + endpoint,
       {
-        method: "POST",
+        ...options,
+        signal: controller.signal,
         headers: {
-          "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: MODEL,
-          messages,
-          temperature: 0.5,
-          max_completion_tokens: 4096
-        }),
-        signal: AbortSignal.timeout(60000)
+          Authorization: `Bearer ${GROQ_API_KEY}`,
+          ...(options.headers || {})
+        }
       }
     );
 
-    const data = await response.json();
+    return response;
 
-    if (!response.ok) {
-      console.error("Groq API Error:", data);
-
-      return res.status(502).json({
-        error: "تعذر الحصول على إجابة حالياً. يرجى المحاولة مرة أخرى."
-      });
-    }
-
-    const reply = data?.choices?.[0]?.message?.content;
-
-    if (typeof reply !== "string" || !reply.trim()) {
-      return res.status(502).json({
-        error: "لم يتمكن Esal-AI من إنشاء إجابة. يرجى المحاولة مجدداً."
-      });
-    }
-
-    return res.json({
-      success: true,
-      assistant: "Esal-AI",
-      reply: reply.trim(),
-      model: MODEL
-    });
-
-  } catch (error) {
-    console.error("Esal-AI Error:", error);
-
-    if (
-      error.name === "TimeoutError" ||
-      error.name === "AbortError"
-    ) {
-      return res.status(504).json({
-        error: "استغرق الطلب وقتاً طويلاً. يرجى المحاولة مجدداً."
-      });
-    }
-
-    return res.status(500).json({
-      error: "حدث خطأ أثناء معالجة طلبك. يرجى المحاولة لاحقاً."
-    });
+  } finally {
+    clearTimeout(timeout);
   }
+}
+
+// =====================================
+// 7. الصفحة الرئيسية وحالة الخادم
+// =====================================
+
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    name: "Esal-AI",
+    status: "online",
+    model: MODEL,
+    version: "2.0",
+    message: "إسال AI جاهز لمساعدتك."
+  });
 });
 
-// Audio transcription API
+// فحص صحة الخادم
+app.get("/health", (req, res) => {
+  res.json({
+    status: "healthy",
+    service: "Esal-AI",
+    timestamp: new Date().toISOString()
+  });
+});
+
+// =====================================
+// 8. المحادثة الذكية
+// =====================================
+
 app.post(
-  "/api/transcribe",
-  upload.single("audio"),
+  "/api/chat",
+  rateLimit({
+    windowMs: 60000,
+    max: 20
+  }),
   async (req, res) => {
     try {
-      if (!process.env.GROQ_API_KEY) {
-        return res.status(500).json({
-          error: "Groq API key is missing."
+      if (!requireApiKey(res)) return;
+
+      const {
+        message,
+        history = []
+      } = req.body || {};
+
+      if (
+        typeof message !== "string" ||
+        !message.trim()
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: "يرجى كتابة رسالتك أولاً."
         });
       }
 
+      if (message.length > MAX_MESSAGE_LENGTH) {
+        return res.status(413).json({
+          success: false,
+          error: "الرسالة طويلة جداً. يرجى تقسيم النص."
+        });
+      }
+
+      if (!Array.isArray(history)) {
+        return res.status(400).json({
+          success: false,
+          error: "سجل المحادثة غير صالح."
+        });
+      }
+
+      // التحقق من سجل المحادثة
+      const safeHistory = history
+        .slice(-MAX_HISTORY_MESSAGES)
+        .filter(item =>
+          item &&
+          ["user", "assistant"].includes(item.role) &&
+          typeof item.content === "string"
+        )
+        .map(item => ({
+          role: item.role,
+          content: item.content.slice(0, 10000)
+        }));
+
+      const messages = [
+        {
+          role: "system",
+          content: SYSTEM_PROMPT
+        },
+        ...safeHistory,
+        {
+          role: "user",
+          content: message.trim()
+        }
+      ];
+
+      const response = await groqRequest(
+        "/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: MODEL,
+            messages,
+            temperature: 0.5,
+            max_completion_tokens: 4096
+          }),
+          timeout: 60000
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("Groq Chat Error:", data);
+
+        return res.status(502).json({
+          success: false,
+          error: "تعذر الحصول على إجابة حالياً. حاول مجدداً."
+        });
+      }
+
+      const reply =
+        data?.choices?.[0]?.message?.content;
+
+      if (
+        typeof reply !== "string" ||
+        !reply.trim()
+      ) {
+        return res.status(502).json({
+          success: false,
+          error: "لم يتمكن إسال AI من إنشاء إجابة."
+        });
+      }
+
+      return res.json({
+        success: true,
+        assistant: "Esal-AI",
+        reply: reply.trim(),
+        model: MODEL
+      });
+
+    } catch (error) {
+      console.error("Chat Error:", error);
+
+      return res.status(500).json({
+        success: false,
+        error: getErrorMessage(error)
+      });
+    }
+  }
+);
+
+// =====================================
+// 9. تحويل الصوت إلى نص
+// =====================================
+
+app.post(
+  "/api/transcribe",
+  rateLimit({
+    windowMs: 60000,
+    max: 10
+  }),
+  upload.single("audio"),
+  async (req, res) => {
+    try {
+      if (!requireApiKey(res)) return;
+
       if (!req.file) {
         return res.status(400).json({
+          success: false,
           error: "لم يتم إرسال تسجيل صوتي."
         });
       }
 
       const form = new FormData();
 
-      const audioBlob = new Blob([req.file.buffer], {
-        type: req.file.mimetype || "audio/webm"
-      });
+      const audioBlob = new Blob(
+        [req.file.buffer],
+        {
+          type: req.file.mimetype || "audio/webm"
+        }
+      );
 
       form.append(
         "file",
@@ -298,125 +469,225 @@ app.post(
         req.file.originalname || "recording.webm"
       );
 
-      form.append("model", "whisper-large-v3-turbo");
+      form.append(
+        "model",
+        "whisper-large-v3-turbo"
+      );
 
-      const response = await fetch(
-        "https://api.groq.com/openai/v1/audio/transcriptions",
+      form.append("response_format", "json");
+
+      const response = await groqRequest(
+        "/audio/transcriptions",
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.GROQ_API_KEY}`
-          },
           body: form,
-          signal: AbortSignal.timeout(60000)
+          timeout: 90000
         }
       );
 
       const data = await response.json();
 
       if (!response.ok) {
-        console.error("Whisper Error:", data);
+        console.error("Transcription Error:", data);
 
         return res.status(502).json({
+          success: false,
           error: "تعذر تحويل الصوت إلى نص."
         });
       }
 
       return res.json({
-        text: data.text
+        success: true,
+        text: data.text || ""
       });
 
     } catch (error) {
       console.error("Transcription Error:", error);
 
       return res.status(500).json({
-        error: "حدث خطأ أثناء معالجة التسجيل."
+        success: false,
+        error: getErrorMessage(error)
       });
     }
   }
 );
 
-// Text-to-Speech API
-app.post("/api/speech", async (req, res) => {
-  try {
-    if (!process.env.GROQ_API_KEY) {
-      return res.status(500).json({
-        error: "Groq API key is missing."
-      });
-    }
+// =====================================
+// 10. تحويل النص إلى صوت
+// =====================================
 
-    const { text, language } = req.body;
+app.post(
+  "/api/speech",
+  rateLimit({
+    windowMs: 60000,
+    max: 30
+  }),
+  async (req, res) => {
+    try {
+      if (!requireApiKey(res)) return;
 
-    if (!text || typeof text !== "string" || !text.trim()) {
-      return res.status(400).json({
-        error: "Please provide text."
-      });
-    }
+      const {
+        text,
+        language = "ar"
+      } = req.body || {};
 
-    if (text.length > 200) {
-      return res.status(400).json({
-        error: "Text must not exceed 200 characters."
-      });
-    }
-
-    const isArabic = language === "ar";
-
-    const model = isArabic
-      ? "canopylabs/orpheus-arabic-saudi"
-      : "canopylabs/orpheus-v1-english";
-
-    const voice = isArabic ? "fahad" : "troy";
-
-    const response = await fetch(
-      "https://api.groq.com/openai/v1/audio/speech",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model,
-          input: text,
-          voice,
-          response_format: "wav"
-        }),
-        signal: AbortSignal.timeout(60000)
+      if (
+        typeof text !== "string" ||
+        !text.trim()
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: "يرجى إرسال النص المراد قراءته."
+        });
       }
-    );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Groq Speech Error:", errorText);
+      if (text.length > 200) {
+        return res.status(400).json({
+          success: false,
+          error: "النص طويل جداً. قسّمه إلى مقاطع قصيرة."
+        });
+      }
 
-      return res.status(502).json({
-        error: "تعذر إنشاء الصوت حالياً."
+      if (!["ar", "en"].includes(language)) {
+        return res.status(400).json({
+          success: false,
+          error: "اللغة الصوتية غير مدعومة حالياً."
+        });
+      }
+
+      // تنظيف النص من الرموز وعلامات الترقيم
+      const cleanText = cleanSpeechText(text);
+
+      if (!cleanText) {
+        return res.status(400).json({
+          success: false,
+          error: "لا توجد كلمات أو أرقام لقراءتها."
+        });
+      }
+
+      // اختيار نموذج الصوت حسب اللغة
+      const model = language === "ar"
+        ? "canopylabs/orpheus-arabic-saudi"
+        : "canopylabs/orpheus-v1-english";
+
+      const voice = language === "ar"
+        ? "fahad"
+        : "troy";
+
+      const response = await groqRequest(
+        "/audio/speech",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model,
+            input: cleanText,
+            voice,
+            response_format: "wav"
+          }),
+          timeout: 60000
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+
+        console.error(
+          "Speech Provider Error:",
+          errorText
+        );
+
+        return res.status(502).json({
+          success: false,
+          error: "تعذر إنشاء الصوت حالياً."
+        });
+      }
+
+      const audioBuffer = Buffer.from(
+        await response.arrayBuffer()
+      );
+
+      res.setHeader(
+        "Content-Type",
+        "audio/wav"
+      );
+
+      res.setHeader(
+        "Content-Length",
+        audioBuffer.length
+      );
+
+      res.setHeader(
+        "Cache-Control",
+        "no-store"
+      );
+
+      return res.send(audioBuffer);
+
+    } catch (error) {
+      console.error("Speech Error:", error);
+
+      return res.status(500).json({
+        success: false,
+        error: getErrorMessage(error)
+      });
+    }
+  }
+);
+
+// =====================================
+// 11. معالجة الملفات والأخطاء
+// =====================================
+
+app.use((err, req, res, next) => {
+  console.error("Server Middleware Error:", err);
+
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({
+        success: false,
+        error: "حجم التسجيل أكبر من الحد المسموح."
       });
     }
 
-    const audioBuffer = Buffer.from(
-      await response.arrayBuffer()
-    );
-
-    res.setHeader("Content-Type", "audio/wav");
-    res.setHeader("Content-Length", audioBuffer.length);
-
-    return res.send(audioBuffer);
-
-  } catch (error) {
-    console.error("Speech Error:", error);
-
-    return res.status(500).json({
-      error: "حدث خطأ أثناء إنشاء الصوت."
+    return res.status(400).json({
+      success: false,
+      error: "حدث خطأ أثناء رفع الملف الصوتي."
     });
   }
+
+  if (err.message === "Origin not allowed") {
+    return res.status(403).json({
+      success: false,
+      error: "هذا المصدر غير مسموح له بالاتصال بالخادم."
+    });
+  }
+
+  return res.status(500).json({
+    success: false,
+    error: "حدث خطأ داخلي في الخادم."
+  });
 });
 
-// Start server
+// =====================================
+// 12. تشغيل الخادم
+// =====================================
+
 app.listen(PORT, "0.0.0.0", () => {
-  console.log("--------------------------------");
-  console.log("Esal-AI Server Started");
-  console.log(`Port: ${PORT}`);
-  console.log(`Model: ${MODEL}`);
-  console.log("--------------------------------");
+  console.log("================================");
+  console.log("       ESAL AI SERVER");
+  console.log("================================");
+  console.log("Status: Online");
+  console.log("Port:", PORT);
+  console.log("Model:", MODEL);
+  console.log("Groq API:", GROQ_API_KEY ? "Configured" : "Missing");
+  console.log("Version: 2.0");
+  console.log("================================");
 });
+
