@@ -9,49 +9,42 @@
   <meta name="description" content="إسال AI - مساعدك الذكي للكتابة والتعلم والترجمة والمحادثة الصوتية.">
   <title>إسال AI | مساعدك الذكي</title>
   <style>
-:root{color-scheme:dark;--bg:#080d18;--panel:#101a2c;--panel2:#14223a;--line:#263956;--text:#f4f7ff;--muted:#98a9c5;--blue:#719cff;--cyan:#57d6d0}
+:root{color-scheme:dark;--text:#f4f6fb;--muted:#9ba9bd}
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -15%,#243c68 0,transparent 48%),linear-gradient(160deg,#080d18,#0b1323 65%,#0c1020);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif}
-button,textarea,select{font:inherit}button{cursor:pointer}
-.shell{max-width:1180px;margin:auto;padding:18px 16px 35px}
-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 2px 22px}
-.brand{display:flex;align-items:center;gap:12px}.logo{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(140deg,#83b2ff,#5865e8);font-size:25px;box-shadow:0 10px 30px #5479df55}
-.brand h1{font-size:21px;margin:0;letter-spacing:-.5px}.brand p{margin:4px 0 0;color:var(--muted);font-size:12px}
-.status{font-size:12px;color:#9be6c6;border:1px solid #28644f;background:#14372e;padding:8px 12px;border-radius:30px}
-.hero{position:relative;overflow:hidden;padding:25px 23px;border:1px solid #344a70;border-radius:24px;background:linear-gradient(120deg,#1b3154,#182541 55%,#282c5b);box-shadow:0 18px 50px #0003}
-.hero:after{content:"✦";position:absolute;left:30px;top:-28px;font-size:150px;color:#ffffff0a;pointer-events:none}
-.eyebrow{color:#a9c7ff;font-size:12px;font-weight:650}.hero h2{font-size:clamp(25px,5vw,37px);margin:9px 0 7px;letter-spacing:-.8px}.hero p{color:#c4d0e4;line-height:1.9;margin:0;max-width:700px;font-size:14px}
-.tools-title{margin:25px 2px 12px;font-size:15px}.tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.tool{border:1px solid var(--line);background:linear-gradient(145deg,#111e33,#0e192b);color:var(--text);border-radius:16px;padding:13px 12px;text-align:right;min-height:82px;transition:.18s}
-.tool:active{transform:scale(.98)}.tool.active{border-color:#719cff;background:linear-gradient(145deg,#203b65,#172a49);box-shadow:inset 0 0 0 1px #719cff33}
-.tool .emoji{font-size:20px}.tool strong{display:block;font-size:13px;margin:5px 0 2px}.tool small{color:var(--muted);font-size:11px}
-.chat{margin-top:17px;border:1px solid #2b3e5d;border-radius:23px;overflow:hidden;background:#0d1728;box-shadow:0 20px 55px #0004}
-.chat-head{padding:15px 17px;background:linear-gradient(100deg,#172943,#17233b);display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line)}
-.chat-head strong{font-size:14px}.chat-head small{display:block;color:var(--muted);font-size:11px;margin-top:4px}
-.ghost{background:#1c2d49;border:1px solid #425a7d;color:#e4edff;padding:9px 12px;border-radius:11px;font-size:12px;white-space:nowrap}
-.messages{padding:18px;min-height:300px;max-height:58vh;overflow-y:auto;display:flex;flex-direction:column;gap:15px;scroll-behavior:smooth}
-.welcome{text-align:center;color:var(--muted);font-size:13px;line-height:2;padding:35px 12px}
-.bubble{max-width:92%;padding:13px 15px;border-radius:18px;line-height:1.95;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 5px 16px #0002}
-.user{align-self:flex-start;background:linear-gradient(135deg,#28528e,#244575);border-bottom-right-radius:5px}
-.assistant{align-self:flex-end;background:linear-gradient(145deg,#182941,#152338);border:1px solid #2e4260;border-bottom-left-radius:5px}
-.bubble-label{font-size:10px;color:#aec4e8;margin-bottom:5px;font-weight:700}
-.bubble-actions{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}.mini{border:1px solid #405778;background:#1b2c45;color:#e1ebff;padding:7px 10px;border-radius:9px;font-size:11px}
-.composer{padding:14px;border-top:1px solid var(--line);background:#111d30}
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -20%,#263b61 0,transparent 55%),#0b1020;color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif}
+button,textarea{font:inherit}button{cursor:pointer}
+.shell{max-width:900px;min-height:100vh;margin:auto;padding:18px 16px 22px;display:flex;flex-direction:column}
+header{display:flex;align-items:center;justify-content:space-between;padding:4px 2px 18px}
+.brand{display:flex;align-items:center;gap:11px}.logo{width:40px;height:40px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(140deg,#9bc0ff,#5e73e8);font-size:22px}
+.brand h1{font-size:19px;margin:0}.brand p{font-size:11px;color:var(--muted);margin:3px 0 0}
+.status{font-size:11px;color:#9ddfc0}
+.hero,.tools-title,.tools{display:none!important}
+.chat{flex:1;display:flex;flex-direction:column;min-height:calc(100vh - 95px);border:1px solid #273752;border-radius:22px;overflow:hidden;background:rgba(14,22,38,.92);box-shadow:0 20px 70px #0004}
+.chat-head{display:flex;align-items:center;justify-content:space-between;padding:14px 17px;border-bottom:1px solid #263650;background:#111b2e}
+.chat-head strong{font-size:14px}.chat-head small{display:block;font-size:11px;color:var(--muted);margin-top:3px}
+.ghost{border:1px solid #354968;background:#1a2941;color:#e6edfa;border-radius:10px;padding:8px 11px;font-size:11px}
+.messages{flex:1;padding:22px 18px;min-height:320px;max-height:none;overflow-y:auto;display:flex;flex-direction:column;gap:17px;scroll-behavior:smooth}
+.welcome{margin:auto;text-align:center;max-width:460px;color:var(--muted);font-size:14px;line-height:2;padding:35px 12px}
+.welcome:before{content:"✦";display:grid;place-items:center;width:54px;height:54px;border-radius:18px;background:#1b2b49;color:#a9c5ff;font-size:25px;margin:0 auto 16px}
+.bubble{max-width:min(88%,680px);padding:13px 16px;border-radius:18px;line-height:1.95;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.user{align-self:flex-start;background:#233e67;border-bottom-right-radius:5px}
+.assistant{align-self:flex-end;background:#17243a;border:1px solid #2c405e;border-bottom-left-radius:5px}
+.bubble-label{font-size:10px;color:#a9c0e2;margin-bottom:5px;font-weight:700}
+.bubble-actions{display:flex;gap:7px;margin-top:10px}.mini{border:1px solid #3a506f;background:#1b2c45;color:#e5edfc;padding:7px 10px;border-radius:9px;font-size:11px}
+.composer{padding:13px;border-top:1px solid #263650;background:#111b2e}
 .input-wrap{display:flex;align-items:flex-end;gap:9px}
-textarea{width:100%;min-height:58px;max-height:170px;resize:vertical;border-radius:16px;border:1px solid #3a5274;background:#0a1425;color:var(--text);padding:14px;outline:none;line-height:1.7}
-textarea:focus,select:focus{border-color:#79a4ff;box-shadow:0 0 0 3px #6797ff20}
-.send{min-width:56px;height:56px;border:0;border-radius:16px;background:linear-gradient(135deg,#78a7ff,#426fe8);color:white;font-size:22px;box-shadow:0 8px 20px #4777df44}
+textarea{width:100%;min-height:54px;max-height:160px;resize:vertical;border-radius:16px;border:1px solid #3b506e;background:#0b1424;color:var(--text);padding:13px 14px;outline:none;line-height:1.7}
+textarea:focus{border-color:#85aaff;box-shadow:0 0 0 3px #719cff20}
+.send,.mic-main{width:52px;height:52px;flex:0 0 52px;border:0;border-radius:15px;color:white;font-size:20px}
+.send{background:linear-gradient(135deg,#8db4ff,#536fe0)}
+.mic-main{background:#1e304d;border:1px solid #405779}
+.mic-main.recording{background:#7d3041;border-color:#db7187}
 .send:disabled{opacity:.5}
-.composer-tools{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap;align-items:center}
-.action{border:1px solid #3c5272;background:#1a2a43;color:#dce7ff;border-radius:11px;padding:9px 11px;font-size:12px}
-.action.recording{background:#592b38;border-color:#b95069;color:#fff}
-select{border:1px solid #3c5272;background:#0d192b;color:#e6eeff;border-radius:10px;padding:9px 10px;font-size:12px;max-width:100%}
-.select-label{font-size:11px;color:#aabbd4}
-.hint{color:#8190aa;font-size:11px;line-height:1.8;margin:11px 3px 0}
-footer{text-align:center;color:#71809c;font-size:11px;padding:22px 5px}
-@media(min-width:680px){.shell{padding:25px 24px 45px}.tools{grid-template-columns:repeat(4,1fr)}.tool{text-align:center}.bubble{max-width:84%}.hero{padding:34px 30px}.messages{padding:23px;min-height:350px}}
-@media(max-width:420px){.shell{padding:12px 10px 28px}.hero{padding:21px 16px}.chat-head{padding:12px}.messages{padding:12px}.bubble{max-width:96%;font-size:13px}.ghost{padding:8px;font-size:11px}}
-  </style>
+.composer-tools,.select-label,#speechLanguage,#speechVoice{display:none!important}
+.hint{color:#7f91ad;font-size:10px;text-align:center;margin-top:9px}
+footer{text-align:center;color:#63728c;font-size:10px;padding:12px}
+@media(max-width:480px){.shell{padding:10px 9px}.chat{border-radius:17px;min-height:calc(100vh - 75px)}.messages{padding:15px 11px}.bubble{max-width:94%;font-size:13px}.chat-head{padding:12px}.ghost{padding:8px}.composer{padding:10px}}
+  </style>e>
 </head>
 <body>
 <div class="shell">
@@ -63,24 +56,6 @@ footer{text-align:center;color:#71809c;font-size:11px;padding:22px 5px}
     <div class="status">● متصل وجاهز</div>
   </header>
 
-  <section class="hero">
-    <div class="eyebrow">مساعد ذكي متعدد الاستخدامات</div>
-    <h2>مرحباً بك في إسال AI</h2>
-    <p>تحدث بلغتك، اسأل بحرية، واحصل على إجابات واضحة. يمكنك أيضاً الاستماع إلى الردود بأصوات طبيعية للعربية والإنجليزية، أو استخدام أصوات جهازك للغات الأخرى.</p>
-  </section>
-
-  <h3 class="tools-title">اختر طريقة المساعدة</h3>
-  <section class="tools" aria-label="الأدوات">
-    <button class="tool active" data-tool="مساعد عام"><span class="emoji">✦</span><strong>مساعد ذكي</strong><small>اسأل عن أي شيء</small></button>
-    <button class="tool" data-tool="كاتب المقالات"><span class="emoji">✍️</span><strong>الكتابة</strong><small>مقالات ورسائل ونصوص</small></button>
-    <button class="tool" data-tool="مولد الأفكار"><span class="emoji">💡</span><strong>الأفكار</strong><small>مشاريع وحلول مبتكرة</small></button>
-    <button class="tool" data-tool="المترجم"><span class="emoji">🌍</span><strong>الترجمة</strong><small>لغات متعددة</small></button>
-    <button class="tool" data-tool="المساعد الدراسي"><span class="emoji">📚</span><strong>التعلم</strong><small>شرح وتلخيص وتمارين</small></button>
-    <button class="tool" data-tool="مصحح النصوص"><span class="emoji">📝</span><strong>تحسين النصوص</strong><small>تدقيق وصياغة احترافية</small></button>
-    <button class="tool" data-tool="مساعد البرمجة"><span class="emoji">💻</span><strong>البرمجة</strong><small>أكواد وحلول تقنية</small></button>
-    <button class="tool" data-tool="التلخيص"><span class="emoji">📑</span><strong>التلخيص</strong><small>أهم النقاط بسرعة</small></button>
-  </section>
-
   <section class="chat">
     <div class="chat-head">
       <div><strong id="toolName">محادثة مع إسال AI</strong><small>محادثة ذكية مع حفظ السجل على جهازك</small></div>
@@ -91,7 +66,8 @@ footer{text-align:center;color:#71809c;font-size:11px;padding:22px 5px}
     </div>
     <div class="composer">
       <div class="input-wrap">
-        <textarea id="prompt" rows="2" placeholder="اكتب رسالتك هنا..."></textarea>
+        <textarea id="prompt" rows="2" placeholder="اسأل إسال AI أي شيء..."></textarea>
+        <button class="mic-main" id="mic" aria-label="تسجيل صوتي">🎙</button>
         <button class="send" id="send" aria-label="إرسال">➤</button>
       </div>
       <div class="composer-tools">
@@ -569,7 +545,7 @@ footer{text-align:center;color:#71809c;font-size:11px;padding:22px 5px}
 
     form.append("file", blob, "recording." + ext);
 
-    micBtn.textContent = "⏳ جارٍ تحويل الصوت";
+    micBtn.textContent = "…";
     micBtn.disabled = true;
 
     try {
@@ -595,7 +571,7 @@ footer{text-align:center;color:#71809c;font-size:11px;padding:22px 5px}
       alert(err.message || "حدث خطأ أثناء معالجة الصوت.");
     } finally {
       micBtn.disabled = false;
-      micBtn.textContent = "🎙️ تسجيل صوتي";
+      micBtn.textContent = "🎙";
     }
   }
 
@@ -644,12 +620,12 @@ footer{text-align:center;color:#71809c;font-size:11px;padding:22px 5px}
         if (blob.size) await transcribe(blob);
 
         micBtn.classList.remove("recording");
-        micBtn.textContent = "🎙️ تسجيل صوتي";
+        micBtn.textContent = "🎙";
       };
 
       recorder.start();
       micBtn.classList.add("recording");
-      micBtn.textContent = "⏹ اضغط لإنهاء التسجيل";
+      micBtn.textContent = "■";
 
     } catch (_) {
       alert("لم يتم السماح باستخدام الميكروفون. فعّل إذن الميكروفون لمتصفح Chrome.");
