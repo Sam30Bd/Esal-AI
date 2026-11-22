@@ -1,13 +1,17 @@
+
 import express from "express";
 import cors from "cors";
 import multer from "multer";
+
 const app = express();
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 20 * 1024 * 1024
   }
 });
+
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
 
@@ -150,7 +154,6 @@ app.post("/api/chat", async (req, res) => {
   try {
     const { message, history = [] } = req.body;
 
-    // Validate user message
     if (
       !message ||
       typeof message !== "string" ||
@@ -167,21 +170,18 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
-    // Check API key
     if (!process.env.GROQ_API_KEY) {
       return res.status(500).json({
         error: "مفتاح Groq API غير مضبوط."
       });
     }
 
-    // Validate conversation history
     if (!Array.isArray(history)) {
       return res.status(400).json({
         error: "سجل المحادثة غير صالح."
       });
     }
 
-    // Accept only user and assistant messages
     const safeHistory = history
       .slice(-20)
       .filter(
@@ -195,7 +195,6 @@ app.post("/api/chat", async (req, res) => {
         content: item.content.slice(0, 10000)
       }));
 
-    // Build conversation
     const messages = [
       {
         role: "system",
@@ -208,7 +207,6 @@ app.post("/api/chat", async (req, res) => {
       }
     ];
 
-    // Request Groq AI
     const response = await fetch(
       "https://api.groq.com/openai/v1/chat/completions",
       {
@@ -229,7 +227,6 @@ app.post("/api/chat", async (req, res) => {
 
     const data = await response.json();
 
-    // Handle API errors
     if (!response.ok) {
       console.error("Groq API Error:", data);
 
@@ -246,7 +243,6 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
-    // Return successful response
     return res.json({
       success: true,
       assistant: "Esal-AI",
@@ -257,8 +253,10 @@ app.post("/api/chat", async (req, res) => {
   } catch (error) {
     console.error("Esal-AI Error:", error);
 
-    if (error.name === "TimeoutError" ||
-        error.name === "AbortError") {
+    if (
+      error.name === "TimeoutError" ||
+      error.name === "AbortError"
+    ) {
       return res.status(504).json({
         error: "استغرق الطلب وقتاً طويلاً. يرجى المحاولة مجدداً."
       });
@@ -270,68 +268,75 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-// Start serverapp.post("/api/transcribe", upload.single("audio"), async (req, res) => {
-  try {
-    if (!process.env.GROQ_API_KEY) {
-      return res.status(500).json({
-        error: "Groq API key is missing."
-      });
-    }
-
-    if (!req.file) {
-      return res.status(400).json({
-        error: "لم يتم إرسال تسجيل صوتي."
-      });
-    }
-
-    const form = new FormData();
-
-    const audioBlob = new Blob([req.file.buffer], {
-      type: req.file.mimetype || "audio/webm"
-    });
-
-    form.append(
-      "file",
-      audioBlob,
-      req.file.originalname || "recording.webm"
-    );
-
-    form.append("model", "whisper-large-v3-turbo");
-
-    const response = await fetch(
-      "https://api.groq.com/openai/v1/audio/transcriptions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.GROQ_API_KEY}`
-        },
-        body: form,
-        signal: AbortSignal.timeout(60000)
+// Audio transcription API
+app.post(
+  "/api/transcribe",
+  upload.single("audio"),
+  async (req, res) => {
+    try {
+      if (!process.env.GROQ_API_KEY) {
+        return res.status(500).json({
+          error: "Groq API key is missing."
+        });
       }
-    );
 
-    const data = await response.json();
+      if (!req.file) {
+        return res.status(400).json({
+          error: "لم يتم إرسال تسجيل صوتي."
+        });
+      }
 
-    if (!response.ok) {
-      console.error("Whisper Error:", data);
+      const form = new FormData();
+
+      const audioBlob = new Blob([req.file.buffer], {
+        type: req.file.mimetype || "audio/webm"
+      });
+
+      form.append(
+        "file",
+        audioBlob,
+        req.file.originalname || "recording.webm"
+      );
+
+      form.append("model", "whisper-large-v3-turbo");
+
+      const response = await fetch(
+        "https://api.groq.com/openai/v1/audio/transcriptions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.GROQ_API_KEY}`
+          },
+          body: form,
+          signal: AbortSignal.timeout(60000)
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("Whisper Error:", data);
+
+        return res.status(502).json({
+          error: "تعذر تحويل الصوت إلى نص."
+        });
+      }
+
+      return res.json({
+        text: data.text
+      });
+
+    } catch (error) {
+      console.error("Transcription Error:", error);
 
       return res.status(500).json({
-        error: "تعذر تحويل الصوت إلى نص."
+        error: "حدث خطأ أثناء معالجة التسجيل."
       });
     }
-
-    res.json({
-      text: data.text
-    });
-
-  } catch (error) {
-    console.error("Transcription Error:", error);
-
-    res.status(500).json({
-      error: "حدث خطأ أثناء معالجة التسجيل."
-    });
   }
-});
+);
+
+// Start server
 app.listen(PORT, "0.0.0.0", () => {
   console.log("--------------------------------");
   console.log("Esal-AI Server Started");
